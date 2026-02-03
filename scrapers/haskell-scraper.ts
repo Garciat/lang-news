@@ -10,6 +10,8 @@
  * OUTPUT_DIR: Directory where article files will be created (default: src/articles)
  */
 
+import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.43/deno-dom-wasm.ts";
+
 const OUTPUT_DIR = Deno.args[0] || "src/articles";
 const LANGUAGE = "haskell";
 const BLOG_ARCHIVE_URL = "https://blog.haskell.org/archive/";
@@ -61,26 +63,39 @@ async function fetchBlogArchive(): Promise<Article[]> {
 function parseArchivePage(html: string): Article[] {
   const articles: Article[] = [];
   
-  // Match article entries in the archive
-  // Format: <p><a href="URL">TITLE</a> - <time datetime="YYYY-MM-DD">YYYY-MM-DD</time></p>
-  const entryRegex = /<p><a\s+href="([^"]+)">([^<]+)<\/a>\s*-\s*<time\s+datetime="([^"]+)">([^<]+)<\/time><\/p>/gi;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
   
-  let match;
-  while ((match = entryRegex.exec(html)) !== null) {
-    const url = match[1];
-    const title = match[2].trim();
-    const datetime = match[3];
+  if (!doc) {
+    console.error("Failed to parse HTML");
+    return articles;
+  }
+  
+  // Find all paragraph elements containing article links
+  const paragraphs = doc.querySelectorAll("main p");
+  
+  for (const p of paragraphs) {
+    const link = p.querySelector("a");
+    const time = p.querySelector("time");
     
-    // Convert URL to full URL if needed
-    const fullUrl = url.startsWith('http') ? url : `https://blog.haskell.org${url}`;
-    
-    articles.push({
-      title,
-      date: datetime,
-      url: fullUrl,
-      content: "", // Will be filled when fetching individual articles
-      tags: inferTags(title, url),
-    });
+    if (link && time) {
+      const url = link.getAttribute("href") || "";
+      const title = link.textContent?.trim() || "";
+      const datetime = time.getAttribute("datetime") || "";
+      
+      if (url && title && datetime) {
+        // Convert URL to full URL if needed
+        const fullUrl = url.startsWith('http') ? url : `https://blog.haskell.org${url}`;
+        
+        articles.push({
+          title,
+          date: datetime,
+          url: fullUrl,
+          content: "", // Will be filled when fetching individual articles
+          tags: inferTags(title, url),
+        });
+      }
+    }
   }
   
   // Sort by date (newest first) and take recent ones
@@ -112,69 +127,126 @@ async function fetchArticleContent(url: string): Promise<string> {
  * Extract article content from HTML
  */
 function extractArticleContent(html: string): string {
-  // Remove script and style tags
-  let content = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
-  content = content.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
-  content = content.replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, "");
-  content = content.replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, "");
-  content = content.replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, "");
-  content = content.replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, "");
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
   
-  // Extract the main article content
-  const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
-  if (articleMatch) {
-    content = articleMatch[1];
-    
-    // Remove the title and metadata (first h1 and span)
-    content = content.replace(/<h1[^>]*>.*?<\/h1>/i, "");
-    content = content.replace(/<span\s+class="s95"[^>]*>.*?<\/span>/i, "");
-  } else {
-    // Fallback: try to find main content
-    const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
-    if (mainMatch) {
-      content = mainMatch[1];
-    }
+  if (!doc) {
+    return "Content not available. Please visit the original article for full details.";
   }
   
-  // Convert HTML to markdown
-  content = content
-    .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
-    .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
-    .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
-    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, "#### $1\n\n")
-    .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n\n")
-    .replace(/<a\s+(?:[^>]*\s+)?href="([^"]+)"[^>]*>(.*?)<\/a>/gi, "[$2]($1)")
-    .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "**$1**")
-    .replace(/<b[^>]*>(.*?)<\/b>/gi, "**$1**")
-    .replace(/<em[^>]*>(.*?)<\/em>/gi, "*$1*")
-    .replace(/<i[^>]*>(.*?)<\/i>/gi, "*$1*")
-    .replace(/<code[^>]*>(.*?)<\/code>/gi, "`$1`")
-    .replace(/<pre[^>]*>(.*?)<\/pre>/gi, "```\n$1\n```\n")
-    .replace(/<ul[^>]*>/gi, "")
-    .replace(/<\/ul>/gi, "\n")
-    .replace(/<ol[^>]*>/gi, "")
-    .replace(/<\/ol>/gi, "\n")
-    .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<img[^>]*>/gi, "")
-    .replace(/<video[^>]*>[\s\S]*?<\/video>/gi, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, "/")
+  // Find the article element
+  const article = doc.querySelector("article");
+  if (!article) {
+    return "Content not available. Please visit the original article for full details.";
+  }
+  
+  // Remove the title (h1) and metadata (span with class s95)
+  const h1 = article.querySelector("h1");
+  if (h1) h1.remove();
+  
+  const metaSpan = article.querySelector("span.s95");
+  if (metaSpan) metaSpan.remove();
+  
+  // Convert the article to markdown
+  const markdown = htmlToMarkdown(article);
+  
+  // Clean up the markdown
+  let cleaned = markdown
     .replace(/\n\n\n+/g, "\n\n")
+    .replace(/\n\s+\n/g, "\n\n")
     .trim();
   
   // Limit content length to avoid very large files
-  if (content.length > 3000) {
-    content = content.substring(0, 3000) + "\n\n...\n\n*Content truncated. Please visit the original article for the full post.*";
+  if (cleaned.length > 3000) {
+    cleaned = cleaned.substring(0, 3000) + "\n\n...\n\n*Content truncated. Please visit the original article for the full post.*";
   }
   
-  return content || "Content not available. Please visit the original article for full details.";
+  return cleaned || "Content not available. Please visit the original article for full details.";
+}
+
+/**
+ * Convert HTML element to markdown
+ */
+function htmlToMarkdown(element: Element): string {
+  let markdown = "";
+  
+  for (const node of element.childNodes) {
+    if (node.nodeType === 3) { // Text node
+      const text = node.textContent?.trim();
+      if (text) {
+        markdown += text + " ";
+      }
+    } else if (node.nodeType === 1) { // Element node
+      const el = node as Element;
+      const tagName = el.tagName.toLowerCase();
+      
+      switch (tagName) {
+        case "h1":
+          markdown += `\n# ${el.textContent?.trim()}\n\n`;
+          break;
+        case "h2":
+          markdown += `\n## ${el.textContent?.trim()}\n\n`;
+          break;
+        case "h3":
+          markdown += `\n### ${el.textContent?.trim()}\n\n`;
+          break;
+        case "h4":
+          markdown += `\n#### ${el.textContent?.trim()}\n\n`;
+          break;
+        case "p":
+          const pContent = htmlToMarkdown(el).trim();
+          if (pContent) {
+            markdown += `${pContent}\n\n`;
+          }
+          break;
+        case "a":
+          const href = el.getAttribute("href") || "";
+          const text = el.textContent?.trim() || "";
+          markdown += `[${text}](${href})`;
+          break;
+        case "strong":
+        case "b":
+          markdown += `**${el.textContent?.trim()}**`;
+          break;
+        case "em":
+        case "i":
+          markdown += `*${el.textContent?.trim()}*`;
+          break;
+        case "code":
+          markdown += `\`${el.textContent?.trim()}\``;
+          break;
+        case "pre":
+          markdown += `\n\`\`\`\n${el.textContent?.trim()}\n\`\`\`\n\n`;
+          break;
+        case "ul":
+        case "ol":
+          markdown += "\n" + htmlToMarkdown(el);
+          break;
+        case "li":
+          markdown += `- ${htmlToMarkdown(el).trim()}\n`;
+          break;
+        case "br":
+          markdown += "\n";
+          break;
+        case "img":
+        case "video":
+        case "script":
+        case "style":
+        case "span":
+          // Skip these elements but process their children for span
+          if (tagName === "span") {
+            markdown += htmlToMarkdown(el);
+          }
+          break;
+        default:
+          // For other elements, recursively process their children
+          markdown += htmlToMarkdown(el);
+          break;
+      }
+    }
+  }
+  
+  return markdown;
 }
 
 /**
