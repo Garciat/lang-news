@@ -9,5 +9,5 @@ _site/
 .DS_Store
 Thumbs.db
 
-# Mock build (for preview without Deno)
-mock-dist/
+# Generated articles
+src/articles/
