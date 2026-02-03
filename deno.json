@@ -1,7 +1,8 @@
 {
   "tasks": {
     "lume": "deno run --allow-read --allow-write --allow-net --allow-env --allow-run https://deno.land/x/lume@v1.19.4/cli.ts",
-    "build": "deno task lume",
+    "scrape": "./scrapers/haskell-scraper.ts",
+    "build": "deno task scrape && deno task lume",
     "serve": "deno task lume -s"
   },
   "imports": {
