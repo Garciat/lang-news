@@ -11,18 +11,11 @@
  */
 
 import { DOMParser, Element } from "https://deno.land/x/deno_dom@v0.1.43/deno-dom-wasm.ts";
+import { Article, htmlToMarkdown } from "./common.ts";
 
 const OUTPUT_DIR = Deno.args[0] || "src/articles";
 const LANGUAGE = "haskell";
 const BLOG_ARCHIVE_URL = "https://blog.haskell.org/archive/";
-
-interface Article {
-  title: string;
-  date: string;
-  url: string;
-  content: string;
-  tags: string[];
-}
 
 /**
  * Ensure the output directory exists
@@ -162,92 +155,6 @@ function extractArticleContent(html: string): string {
   }
   
   return cleaned || "Content not available. Please visit the original article for full details.";
-}
-
-/**
- * Convert HTML element to markdown
- */
-function htmlToMarkdown(element: Element): string {
-  let markdown = "";
-  
-  for (const node of element.childNodes) {
-    if (node.nodeType === 3) { // Text node
-      const text = node.textContent || "";
-      if (text.trim()) {
-        // Preserve single spaces but normalize multiple spaces
-        markdown += text.replace(/\s+/g, " ");
-      }
-    } else if (node.nodeType === 1) { // Element node
-      const el = node as Element;
-      const tagName = el.tagName.toLowerCase();
-      
-      switch (tagName) {
-        case "h1":
-          markdown += `\n# ${el.textContent?.trim()}\n\n`;
-          break;
-        case "h2":
-          markdown += `\n## ${el.textContent?.trim()}\n\n`;
-          break;
-        case "h3":
-          markdown += `\n### ${el.textContent?.trim()}\n\n`;
-          break;
-        case "h4":
-          markdown += `\n#### ${el.textContent?.trim()}\n\n`;
-          break;
-        case "p":
-          const pContent = htmlToMarkdown(el).trim();
-          if (pContent) {
-            markdown += `${pContent}\n\n`;
-          }
-          break;
-        case "a":
-          const href = el.getAttribute("href") || "";
-          const text = el.textContent?.trim() || "";
-          markdown += `[${text}](${href})`;
-          break;
-        case "strong":
-        case "b":
-          markdown += `**${el.textContent?.trim()}**`;
-          break;
-        case "em":
-        case "i":
-          markdown += `*${el.textContent?.trim()}*`;
-          break;
-        case "code":
-          markdown += `\`${el.textContent?.trim()}\``;
-          break;
-        case "pre":
-          markdown += `\n\`\`\`\n${el.textContent?.trim()}\n\`\`\`\n\n`;
-          break;
-        case "ul":
-        case "ol":
-          markdown += "\n" + htmlToMarkdown(el);
-          break;
-        case "li":
-          markdown += `- ${htmlToMarkdown(el).trim()}\n`;
-          break;
-        case "br":
-          markdown += "\n";
-          break;
-        case "img":
-        case "video":
-        case "script":
-        case "style":
-        case "span":
-          // Skip these elements but process their children for span
-          if (tagName === "span") {
-            markdown += htmlToMarkdown(el);
-          }
-          break;
-        default:
-          // For other elements, recursively process their children
-          markdown += htmlToMarkdown(el);
-          break;
-      }
-    }
-  }
-  
-  return markdown;
 }
 
 /**
