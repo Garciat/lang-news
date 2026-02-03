@@ -229,11 +229,14 @@ async function generateArticleFile(article: Article): Promise<void> {
   
   // Generate front matter
   const frontMatter = `---
+layout: article.vto
 title: "${article.title.replace(/"/g, '\\"')}"
 date: ${article.date}
 language: ${LANGUAGE}
 source: "${article.url}"
 tags: [${article.tags.join(", ")}]
+version: ""
+url: /articles/${article.date}-${LANGUAGE}/
 ---
 
 `;

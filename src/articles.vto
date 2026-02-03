@@ -93,7 +93,7 @@ layout: base.vto
 <h1>All Articles</h1>
 
 <div class="articles-grid">
-{{ set articles = search.pages("articles/*.md", "date=desc") }}
+{{ set articles = search.pages("language=haskell", "date=desc") }}
 {{ if articles.length > 0 }}
   {{ for article of articles }}
   <article class="article-card">

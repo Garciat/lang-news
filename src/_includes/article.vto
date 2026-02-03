@@ -7,11 +7,12 @@ layout: base.vto
   <div class="article-meta">
     <span class="language-badge">{{ language }}</span>
     <span>📅 {{ date |> date("HUMAN_DATE") }}</span>
-    {{ if version }}
-    <span>🔖 Version {{ version }}</span>
+    {{ set ver = version || '' }}
+    {{ if ver !== '' }}
+    <span>🔖 Version {{ ver }}</span>
     {{ /if }}
   </div>
-  {{ if tags }}
+  {{ if tags && tags.length > 0 }}
   <div class="tags">
     {{ for tag of tags }}
     <span class="tag">{{ tag }}</span>

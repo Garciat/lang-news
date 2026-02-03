@@ -132,7 +132,7 @@ layout: base.vto
 <div class="section">
   <h2>Latest Articles</h2>
   <div class="articles-preview">
-  {{ set recentArticles = search.pages("articles/*.md", "date=desc", 5) }}
+  {{ set recentArticles = search.pages("language=haskell", "date=desc", 5) }}
   {{ if recentArticles.length > 0 }}
     {{ for article of recentArticles }}
     <article class="article-card">
@@ -140,11 +140,11 @@ layout: base.vto
       <div class="article-card-meta">
         <span class="language-badge">{{ article.language }}</span>
         <span>📅 {{ article.date |> date("HUMAN_DATE") }}</span>
-        {{ if article.version }}
+        {{ if article.version && article.version !== '' }}
         <span>🔖 {{ article.version }}</span>
         {{ /if }}
       </div>
-      {{ if article.tags }}
+      {{ if article.tags && article.tags.length > 0 }}
       <div class="article-card-tags">
         {{ for tag of article.tags }}
         <span class="tag">{{ tag }}</span>

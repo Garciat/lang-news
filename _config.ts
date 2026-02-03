@@ -12,7 +12,4 @@ site.use(vento());
 site.use(date());
 site.use(metas());
 
-// Copy articles to output
-site.copy("articles");
-
 export default site;
