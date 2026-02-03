@@ -8,3 +8,6 @@ _site/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Mock build (for preview without Deno)
+mock-dist/
