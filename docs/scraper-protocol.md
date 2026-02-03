@@ -40,67 +40,72 @@ Scrapers should:
 
 ## Implementation Guidelines
 
+### Technology
+
+Scrapers should be implemented using **Deno** (TypeScript/JavaScript) for consistency and access to modern web APIs.
+
 ### Command-Line Interface
 
 Recommended CLI pattern:
 
 ```bash
-scraper-name --output-dir <path> [options]
+./scrapers/language-scraper.ts [output-dir]
 ```
 
 Example:
 ```bash
-./scrapers/haskell-scraper.sh --output-dir src/articles/
+./scrapers/haskell-scraper.ts src/articles/
 ```
+
+The scraper should use the shebang `#!/usr/bin/env -S deno run --allow-net --allow-write --allow-read` to be directly executable.
 
 ### Configuration
 
 Scrapers may accept additional optional parameters:
 - `--max-items`: Limit number of articles to fetch
 - `--since`: Only fetch news since a specific date
-- `--dry-run`: Print what would be done without creating files
 
 ### Dependencies
 
-- Scrapers should minimize dependencies
-- Document any required tools or libraries
-- Provide installation instructions
+- Scrapers are written in **Deno (TypeScript)**
+- Use Deno's built-in `fetch` API for HTTP requests
+- Use standard library modules when needed
+- Minimize external dependencies
 
-## Example Implementation
+## Example Implementation (Deno/TypeScript)
 
-Here's a simple shell script scraper structure:
+Here's the basic structure for a Deno scraper:
 
-```bash
-#!/bin/bash
+```typescript
+#!/usr/bin/env -S deno run --allow-net --allow-write --allow-read
 
-set -e
+const OUTPUT_DIR = Deno.args[0] || "src/articles";
+const LANGUAGE = "yourlanguage";
 
-OUTPUT_DIR="${1:-src/articles}"
-LANGUAGE="haskell"
+// Ensure output directory exists
+await Deno.mkdir(OUTPUT_DIR, { recursive: true });
 
-# Create output directory if it doesn't exist
-mkdir -p "$OUTPUT_DIR"
+// Fetch and process news items
+const response = await fetch("https://source-url.com/feed");
+const data = await response.json(); // or .text() for HTML
 
-# Fetch and process news items
-# ... scraping logic here ...
+// Generate article file
+const date = new Date().toISOString().split('T')[0];
+const filename = `${OUTPUT_DIR}/${date}-${LANGUAGE}.md`;
 
-# Generate article file
-DATE=$(date +%Y-%m-%d)
-FILENAME="$OUTPUT_DIR/$DATE-$LANGUAGE.md"
-
-cat > "$FILENAME" << EOF
----
-title: "News Title"
-date: $DATE
-language: $LANGUAGE
-source: "https://example.com/news"
+const content = `---
+title: "Article Title"
+date: ${date}
+language: ${LANGUAGE}
+source: "https://source-url.com"
 tags: [tag1, tag2]
 ---
 
 Article content here...
-EOF
+`;
 
-echo "Created article: $FILENAME"
+await Deno.writeTextFile(filename, content);
+console.log(`✓ Created: ${filename}`);
 ```
 
 ## Testing Your Scraper
@@ -121,4 +126,10 @@ Once your scraper is implemented:
 
 ## Reference Implementation
 
-The Haskell scraper (`scrapers/haskell-scraper.sh`) serves as the reference implementation of this protocol. Refer to it when building new scrapers.
+The Haskell scraper (`scrapers/haskell-scraper.ts`) serves as the reference implementation of this protocol. It demonstrates:
+- Fetching from https://blog.haskell.org/archive/
+- Parsing HTML content
+- Converting to markdown
+- Generating properly formatted articles
+
+Refer to it when building new scrapers.

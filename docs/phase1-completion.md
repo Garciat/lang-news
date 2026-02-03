@@ -31,12 +31,11 @@ Phase 1 of the lang-news aggregator has been successfully implemented, deliverin
 
 ### 2. Reference Implementation
 
-#### Haskell Scraper (`scrapers/haskell-scraper.sh`)
-- Executable shell script
-- Generates 3 sample articles:
-  - GHC 9.6.4 release
-  - Haskell Foundation update
-  - Stack 2.15.1 release
+#### Haskell Scraper (`scrapers/haskell-scraper.ts`)
+- Written in Deno (TypeScript)
+- Fetches real news from https://blog.haskell.org/archive/
+- Parses HTML and extracts article information
+- Converts content to markdown format
 - Demonstrates proper article format
 - Includes all required front matter fields
 - Validates the scraper protocol
@@ -96,7 +95,8 @@ Comprehensive README including:
 ## Success Criteria Verification
 
 ✅ **Haskell language news is being scraped successfully**
-- Scraper generates 3 properly formatted articles
+- Scraper fetches from https://blog.haskell.org/archive/
+- Parses real blog posts and converts to articles
 - All articles pass validation
 
 ✅ **Articles render correctly on both feed and individual pages**
@@ -105,12 +105,11 @@ Comprehensive README including:
 - Individual article pages display full content with metadata
 
 ✅ **Site is viewable locally**
-- Mock build allows preview without Deno
-- When Deno is available, full build works
+- Deno-based build process
+- Development server available
 
 ✅ **Documentation exists for adding additional scrapers**
-- Comprehensive guide with examples
-- Multiple implementation approaches
+- Comprehensive guide with Deno/TypeScript examples
 - Best practices and troubleshooting
 
 ## Architecture Validation
@@ -118,7 +117,8 @@ Comprehensive README including:
 The implementation validates our initial architecture decisions:
 
 1. **Article Format**: Markdown with YAML front matter is simple and flexible
-2. **Scraper Protocol**: Command-line interface with directory parameter works well
+2. **Scraper Protocol**: Deno-based scrapers with directory parameter work well
+3. **Technology Choice**: Deno provides consistent runtime for both scrapers and site generation
 3. **File Naming**: Date-based naming enables easy sorting and organization
 4. **Lume Integration**: Processes articles naturally and generates clean static output
 
@@ -126,26 +126,29 @@ The implementation validates our initial architecture decisions:
 
 ### What Worked Well
 - Simple file-based architecture is easy to understand
-- Shell script scrapers are lightweight and portable
+- Deno provides consistent runtime for scrapers and site
 - Lume's plugin system is flexible
 - Front matter provides good metadata separation
+- Real data scraping validates the architecture
 
 ### Adjustments Made
-- Added mock build script for environments without Deno
-- Enhanced documentation based on implementation experience
-- Added verification script for easier testing
+- Switched from mock data to real scraping
+- Changed from Bash to Deno/TypeScript for scrapers
+- Enhanced documentation with Deno examples
+- Updated verification script for TypeScript scrapers
 
 ### Edge Cases Identified
 - Need to handle multiple articles on same day (addressed with unique filenames)
 - Scraper idempotency is important (documented)
 - Article format validation is necessary (implemented in verify.sh)
+- Network errors need graceful handling (implemented)
 
 ## Next Steps for Phase 2
 
 With Phase 1 complete, Phase 2 can focus on:
 
-1. **More Scrapers**: Add Python, Rust, Go, TypeScript, etc.
-2. **Real Data**: Implement actual scraping from RSS feeds, APIs, websites
+1. **More Scrapers**: Add Python, Rust, Go, TypeScript, etc. (all in Deno)
+2. **Enhanced Scraping**: Improve HTML parsing, add RSS feed support
 3. **Enhanced Features**:
    - Language-specific pages
    - Advanced filtering
@@ -163,7 +166,7 @@ With Phase 1 complete, Phase 2 can focus on:
 - `README.md` - Updated project overview
 
 **Scrapers (1 file)**
-- `scrapers/haskell-scraper.sh` - Reference implementation
+- `scrapers/haskell-scraper.ts` - Deno/TypeScript reference implementation
 
 **Site Source (6 files)**
 - `_config.ts` - Lume configuration
@@ -171,13 +174,13 @@ With Phase 1 complete, Phase 2 can focus on:
 - `src/articles.vto` - Articles feed
 - `src/_includes/base.vto` - Base layout
 - `src/_includes/article.vto` - Article layout
-- `src/articles/*.md` - 3 sample articles
+- `src/articles/` - Generated articles from scraper
 
 **Tools (2 files)**
 - `verify.sh` - Verification script
 - `mock-build.sh` - Mock build for preview
 
-**Total**: 16 files created/modified
+**Total**: 15 files created/modified
 
 ## Conclusion
 

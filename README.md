@@ -44,14 +44,16 @@ The built site will be output to the `dist/` directory.
 
 ### Running Scrapers
 
+Scrapers are written in Deno (TypeScript) and fetch real news from language-specific sources.
+
 To populate the site with articles, run the language-specific scrapers:
 
 ```bash
-# Run the Haskell scraper
-./scrapers/haskell-scraper.sh
+# Run the Haskell scraper (fetches from https://blog.haskell.org/archive/)
+./scrapers/haskell-scraper.ts
 
 # Or specify a custom output directory
-./scrapers/haskell-scraper.sh src/articles/
+./scrapers/haskell-scraper.ts src/articles/
 ```
 
 After running scrapers, rebuild the site to see the new articles:
@@ -76,8 +78,8 @@ lang-news/
 │   │   └── YYYY-MM-DD-language.md
 │   ├── index.md              # Home page
 │   └── articles.vto          # All articles feed page
-├── scrapers/                 # Language-specific scrapers
-│   └── haskell-scraper.sh
+├── scrapers/                 # Language-specific scrapers (Deno/TypeScript)
+│   └── haskell-scraper.ts
 ├── docs/                     # Documentation
 │   ├── article-format.md    # Article format specification
 │   ├── scraper-protocol.md  # Scraper protocol specification
@@ -105,11 +107,14 @@ See [Article Format Specification](docs/article-format.md) for details.
 
 ### Scraper Protocol
 
-Scrapers follow a simple protocol:
+Scrapers are written in **Deno (TypeScript)** and follow a simple protocol:
 1. Accept an output directory as argument
-2. Generate articles as `YYYY-MM-DD-language.md` files
-3. Include all required front matter fields
-4. Handle errors gracefully
+2. Fetch real news from language-specific sources
+3. Generate articles as `YYYY-MM-DD-language.md` files
+4. Include all required front matter fields
+5. Handle errors gracefully
+
+The reference implementation fetches from https://blog.haskell.org/archive/
 
 See [Scraper Protocol Specification](docs/scraper-protocol.md) for details.
 

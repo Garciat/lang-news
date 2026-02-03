@@ -10,7 +10,8 @@ Scrapers are responsible for fetching news from various sources and converting t
 
 1. Read the [Article Format Specification](article-format.md)
 2. Read the [Scraper Protocol Specification](scraper-protocol.md)
-3. Review the reference implementation: `scrapers/haskell-scraper.sh`
+3. Review the reference implementation: `scrapers/haskell-scraper.ts`
+4. Ensure you have [Deno](https://deno.land) installed
 
 ## Step-by-Step Guide
 
@@ -30,11 +31,13 @@ Decide which programming language you want to track and identify reliable news s
 Create a new file in the `scrapers/` directory:
 
 ```bash
-touch scrapers/[language]-scraper.sh
-chmod +x scrapers/[language]-scraper.sh
+touch scrapers/[language]-scraper.ts
+chmod +x scrapers/[language]-scraper.ts
 ```
 
 Replace `[language]` with your language name in lowercase (e.g., `python`, `rust`, `go`).
+
+All scrapers should be written in **Deno (TypeScript)** for consistency.
 
 ### 3. Implement the Scraper
 
@@ -48,95 +51,112 @@ Your scraper should:
 
 #### Basic Template
 
-```bash
-#!/bin/bash
-set -e
+```typescript
+#!/usr/bin/env -S deno run --allow-net --allow-write --allow-read
+/**
+ * [Language] News Scraper
+ */
 
-# Configuration
-OUTPUT_DIR="${1:-src/articles}"
-LANGUAGE="yourlanguage"
+const OUTPUT_DIR = Deno.args[0] || "src/articles";
+const LANGUAGE = "yourlanguage";
 
-# Create output directory
-mkdir -p "$OUTPUT_DIR"
+// Ensure output directory exists
+await Deno.mkdir(OUTPUT_DIR, { recursive: true });
 
-# Fetch and process news
-# TODO: Add your scraping logic here
+console.log(`${LANGUAGE.charAt(0).toUpperCase() + LANGUAGE.slice(1)} News Scraper`);
+console.log("=".repeat(40));
+console.log(`Output directory: ${OUTPUT_DIR}\n`);
 
-# Generate article file
-DATE=$(date +%Y-%m-%d)
-FILENAME="$OUTPUT_DIR/$DATE-$LANGUAGE.md"
-
-if [ ! -f "$FILENAME" ]; then
-    cat > "$FILENAME" << EOF
----
+// Fetch and process news
+try {
+  const response = await fetch("https://your-news-source.com/feed");
+  const html = await response.text();
+  
+  // Parse and extract articles
+  // ... your parsing logic here ...
+  
+  // Generate article file
+  const date = new Date().toISOString().split('T')[0];
+  const filename = `${OUTPUT_DIR}/${date}-${LANGUAGE}.md`;
+  
+  // Check if file already exists
+  try {
+    await Deno.stat(filename);
+    console.log(`- Skipped (exists): ${filename}`);
+  } catch {
+    const content = `---
 title: "Your Article Title"
-date: $DATE
-language: $LANGUAGE
+date: ${date}
+language: ${LANGUAGE}
 source: "https://source-url.com"
 tags: [tag1, tag2]
 ---
 
 Article content goes here...
-EOF
-    echo "✓ Created: $FILENAME"
-else
-    echo "- Skipped (exists): $FILENAME"
-fi
+`;
+    
+    await Deno.writeTextFile(filename, content);
+    console.log(`✓ Created: ${filename}`);
+  }
+} catch (error) {
+  console.error(`Error: ${error.message}`);
+  Deno.exit(1);
+}
 ```
 
-### 4. Choose Your Scraping Method
+### 4. Scraping with Deno
 
-Depending on your language and comfort level, you can use different tools:
+All scrapers should use Deno for consistency. Deno provides:
 
-#### Option A: Shell Script (Simplest)
+- Built-in `fetch` API for HTTP requests
+- TypeScript support out of the box
+- Secure by default (explicit permissions)
+- No package.json needed
 
-Good for:
-- RSS feeds
-- Static pages
-- APIs with simple responses
+#### Parsing HTML
 
-Tools you might use:
-- `curl` or `wget` for fetching
-- `xmllint` or `xq` for XML/RSS parsing
-- `jq` for JSON parsing
-- `sed`/`awk` for text processing
+For HTML parsing, you can use simple regex for basic extraction or use a library:
 
-#### Option B: Python Script
+```typescript
+// Simple regex-based parsing
+const titleMatch = html.match(/<h1[^>]*>(.*?)<\/h1>/i);
+const title = titleMatch ? titleMatch[1] : "Untitled";
 
-Good for:
-- Complex HTML parsing
-- Multiple sources
-- Advanced data transformation
-
-Example structure:
-```python
-#!/usr/bin/env python3
-import sys
-import requests
-from bs4 import BeautifulSoup
-import datetime
-
-def scrape_news(output_dir):
-    # Your scraping logic
-    pass
-
-if __name__ == "__main__":
-    output_dir = sys.argv[1] if len(sys.argv) > 1 else "src/articles"
-    scrape_news(output_dir)
+// For complex parsing, consider using a library like deno-dom:
+// import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 ```
 
-#### Option C: Node.js/Deno Script
+#### Working with RSS/Atom Feeds
 
-Good for:
-- Integration with existing JS tooling
-- Using npm packages for scraping
+```typescript
+const response = await fetch("https://example.com/feed.xml");
+const xml = await response.text();
 
-Example with Deno:
-```javascript
-#!/usr/bin/env -S deno run --allow-net --allow-write
+// Parse XML (simple approach)
+const items = xml.match(/<item>(.*?)<\/item>/gs) || [];
+for (const item of items) {
+  const title = item.match(/<title>(.*?)<\/title>/)?.[1];
+  const link = item.match(/<link>(.*?)<\/link>/)?.[1];
+  const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1];
+  // ... process item
+}
+```
 
-const outputDir = Deno.args[0] || "src/articles";
-// Your scraping logic
+#### Working with JSON APIs
+
+```typescript
+const response = await fetch("https://api.example.com/news");
+const data = await response.json();
+
+for (const item of data.items) {
+  // Process each news item
+  const article = {
+    title: item.title,
+    date: item.published_at.split('T')[0],
+    url: item.url,
+    // ...
+  };
+}
 ```
 
 ### 5. Handle Common Scenarios
@@ -145,28 +165,44 @@ const outputDir = Deno.args[0] || "src/articles";
 
 Check if a file exists before creating it:
 
-```bash
-if [ ! -f "$FILENAME" ]; then
-    # Create file
-else
-    echo "Article already exists, skipping"
-fi
+```typescript
+try {
+  await Deno.stat(filename);
+  console.log(`- Skipped (exists): ${filename}`);
+  return; // Skip this article
+} catch (error) {
+  if (error instanceof Deno.errors.NotFound) {
+    // File doesn't exist, proceed to create it
+  } else {
+    throw error;
+  }
+}
 ```
 
 #### Multiple Articles Per Day
 
-Add a sequence number or slug:
+Add a slug or sequence to the filename:
 
-```bash
-FILENAME="$OUTPUT_DIR/$DATE-$LANGUAGE-$SLUG.md"
+```typescript
+const slug = title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+const filename = `${OUTPUT_DIR}/${date}-${LANGUAGE}-${slug}.md`;
 ```
 
-#### Fetching Historical Data
+#### Error Handling
 
-Add a date range parameter:
+Always handle network and parsing errors gracefully:
 
-```bash
-SINCE_DATE="${2:-$(date -d '7 days ago' +%Y-%m-%d)}"
+```typescript
+try {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  // ... process response
+} catch (error) {
+  console.error(`Error fetching ${url}: ${error.message}`);
+  // Continue with next article or exit
+}
 ```
 
 ### 6. Test Your Scraper
@@ -175,7 +211,7 @@ Run your scraper and verify the output:
 
 ```bash
 # Run the scraper
-./scrapers/yourlanguage-scraper.sh
+./scrapers/yourlanguage-scraper.ts
 
 # Check the generated files
 ls -la src/articles/
@@ -190,38 +226,24 @@ deno task build
 deno task serve
 ```
 
-### 7. Handle Errors Gracefully
+### 7. Document Your Scraper
 
-Add error handling to your scraper:
+Add a documentation comment at the top of your scraper:
 
-```bash
-set -e  # Exit on error
-
-# Wrap risky operations in error checks
-if ! curl -f "https://source.com/feed" -o /tmp/feed.xml; then
-    echo "Error: Failed to fetch feed" >&2
-    exit 1
-fi
+```typescript
+#!/usr/bin/env -S deno run --allow-net --allow-write --allow-read
+/**
+ * [Language] News Scraper
+ *
+ * Fetches news from:
+ * - Source 1: https://...
+ * - Source 2: https://...
+ *
+ * Usage: ./scrapers/yourlanguage-scraper.ts [OUTPUT_DIR]
+ */
 ```
 
-### 8. Document Your Scraper
-
-Add a comment block at the top of your scraper:
-
-```bash
-#!/bin/bash
-#
-# [Language] News Scraper
-#
-# Fetches news from:
-# - Source 1: https://...
-# - Source 2: https://...
-#
-# Usage: ./scrapers/yourlanguage-scraper.sh [OUTPUT_DIR]
-#
-# Dependencies:
-# - curl
-# - jq (for JSON parsing)
+### 8. Add to Documentation
 #
 ```
 
@@ -237,8 +259,8 @@ Update this file's "Available Scrapers" section below with:
 
 ### Haskell
 
-- **File**: `scrapers/haskell-scraper.sh`
-- **Sources**: Currently generates sample articles (POC)
+- **File**: `scrapers/haskell-scraper.ts`
+- **Sources**: https://blog.haskell.org/archive/
 - **Notes**: Reference implementation demonstrating the scraper protocol
 
 ## Tips and Best Practices
@@ -247,37 +269,65 @@ Update this file's "Available Scrapers" section below with:
 
 Be respectful of source websites:
 
-```bash
-sleep 1  # Wait between requests
+```typescript
+// Wait between requests
+await new Promise(resolve => setTimeout(resolve, 1000));
 ```
 
 ### Caching
 
 Consider caching fetched data to avoid re-fetching:
 
-```bash
-CACHE_FILE="/tmp/yourlanguage-feed.xml"
-if [ ! -f "$CACHE_FILE" ] || [ $(find "$CACHE_FILE" -mmin +60) ]; then
-    curl "https://source.com/feed" -o "$CACHE_FILE"
-fi
+```typescript
+const CACHE_FILE = "/tmp/yourlanguage-feed.json";
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
+
+try {
+  const stat = await Deno.stat(CACHE_FILE);
+  const age = Date.now() - stat.mtime.getTime();
+  
+  if (age < CACHE_DURATION_MS) {
+    // Use cached data
+    const cached = await Deno.readTextFile(CACHE_FILE);
+    return JSON.parse(cached);
+  }
+} catch {
+  // Cache doesn't exist or is invalid
+}
+
+// Fetch fresh data and cache it
+const data = await fetchFreshData();
+await Deno.writeTextFile(CACHE_FILE, JSON.stringify(data));
 ```
 
 ### Logging
 
 Add logging for debugging:
 
-```bash
-LOG_FILE="/tmp/yourlanguage-scraper.log"
-echo "[$(date)] Starting scrape" >> "$LOG_FILE"
+```typescript
+const verbose = Deno.args.includes("--verbose");
+
+function log(message: string) {
+  if (verbose) {
+    console.log(`[${new Date().toISOString()}] ${message}`);
+  }
+}
+
+log("Starting scrape...");
 ```
 
 ### Configuration Files
 
 For complex scrapers, consider using a config file:
 
-```bash
-CONFIG_FILE="scrapers/yourlanguage-config.json"
-SOURCES=$(jq -r '.sources[]' "$CONFIG_FILE")
+```typescript
+const config = JSON.parse(
+  await Deno.readTextFile("scrapers/yourlanguage-config.json")
+);
+
+for (const source of config.sources) {
+  await fetchFromSource(source);
+}
 ```
 
 ## Troubleshooting
@@ -286,7 +336,19 @@ SOURCES=$(jq -r '.sources[]' "$CONFIG_FILE")
 
 Make the script executable:
 ```bash
-chmod +x scrapers/yourlanguage-scraper.sh
+chmod +x scrapers/yourlanguage-scraper.ts
+```
+
+### "Requires net access" error
+
+Deno requires explicit permissions. Use:
+```bash
+deno run --allow-net --allow-write --allow-read scrapers/yourlanguage-scraper.ts
+```
+
+Or use the shebang to make it directly executable:
+```typescript
+#!/usr/bin/env -S deno run --allow-net --allow-write --allow-read
 ```
 
 ### Articles not showing up on site
@@ -308,7 +370,7 @@ chmod +x scrapers/yourlanguage-scraper.sh
 If you run into issues:
 
 1. Check the [Article Format](article-format.md) and [Scraper Protocol](scraper-protocol.md) docs
-2. Review the reference implementation: `scrapers/haskell-scraper.sh`
+2. Review the reference implementation: `scrapers/haskell-scraper.ts`
 3. Open an issue on GitHub with:
    - Your scraper code
    - Error messages
