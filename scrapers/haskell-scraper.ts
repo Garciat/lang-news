@@ -172,9 +172,10 @@ function htmlToMarkdown(element: Element): string {
   
   for (const node of element.childNodes) {
     if (node.nodeType === 3) { // Text node
-      const text = node.textContent?.trim();
-      if (text) {
-        markdown += text + " ";
+      const text = node.textContent || "";
+      if (text.trim()) {
+        // Preserve single spaces but normalize multiple spaces
+        markdown += text.replace(/\s+/g, " ");
       }
     } else if (node.nodeType === 1) { // Element node
       const el = node as Element;
