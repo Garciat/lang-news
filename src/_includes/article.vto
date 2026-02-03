@@ -1,0 +1,33 @@
+---
+layout: base.vto
+---
+
+<div class="article-header">
+  <h1>{{ title }}</h1>
+  <div class="article-meta">
+    <span class="language-badge">{{ language }}</span>
+    <span>📅 {{ date |> date("HUMAN_DATE") }}</span>
+    {{ if version }}
+    <span>🔖 Version {{ version }}</span>
+    {{ /if }}
+  </div>
+  {{ if tags }}
+  <div class="tags">
+    {{ for tag of tags }}
+    <span class="tag">{{ tag }}</span>
+    {{ /for }}
+  </div>
+  {{ /if }}
+</div>
+
+<div class="article-content">
+  {{ content }}
+  
+  {{ if source }}
+  <div class="source-link">
+    <a href="{{ source }}" target="_blank" rel="noopener noreferrer">
+      🔗 Read the original article
+    </a>
+  </div>
+  {{ /if }}
+</div>
