@@ -62,29 +62,21 @@ function parseArchivePage(html: string): Article[] {
   const articles: Article[] = [];
   
   // Match article entries in the archive
-  // The Haskell blog uses a simple format with links to posts
-  const linkRegex = /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi;
-  const dateRegex = /(\d{4})-(\d{2})-(\d{2})/;
+  // Format: <p><a href="URL">TITLE</a> - <time datetime="YYYY-MM-DD">YYYY-MM-DD</time></p>
+  const entryRegex = /<p><a\s+href="([^"]+)">([^<]+)<\/a>\s*-\s*<time\s+datetime="([^"]+)">([^<]+)<\/time><\/p>/gi;
   
   let match;
-  while ((match = linkRegex.exec(html)) !== null) {
+  while ((match = entryRegex.exec(html)) !== null) {
     const url = match[1];
     const title = match[2].trim();
+    const datetime = match[3];
     
-    // Skip non-article links (navigation, etc.)
-    if (!url.startsWith('/') && !url.startsWith('http')) continue;
-    if (url.includes('archive') || url.includes('feed')) continue;
-    
-    // Extract date from URL or content
-    const dateMatch = url.match(dateRegex);
-    if (!dateMatch) continue;
-    
-    const date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+    // Convert URL to full URL if needed
     const fullUrl = url.startsWith('http') ? url : `https://blog.haskell.org${url}`;
     
     articles.push({
       title,
-      date,
+      date: datetime,
       url: fullUrl,
       content: "", // Will be filled when fetching individual articles
       tags: inferTags(title, url),
@@ -120,46 +112,67 @@ async function fetchArticleContent(url: string): Promise<string> {
  * Extract article content from HTML
  */
 function extractArticleContent(html: string): string {
-  // Remove HTML tags and extract main content
-  // This is a simple extraction - you may need to adjust based on the actual HTML structure
-  
   // Remove script and style tags
   let content = html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
   content = content.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+  content = content.replace(/<head\b[^<]*(?:(?!<\/head>)<[^<]*)*<\/head>/gi, "");
+  content = content.replace(/<header\b[^<]*(?:(?!<\/header>)<[^<]*)*<\/header>/gi, "");
+  content = content.replace(/<nav\b[^<]*(?:(?!<\/nav>)<[^<]*)*<\/nav>/gi, "");
+  content = content.replace(/<footer\b[^<]*(?:(?!<\/footer>)<[^<]*)*<\/footer>/gi, "");
   
-  // Try to extract the main article content
+  // Extract the main article content
   const articleMatch = content.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
   if (articleMatch) {
     content = articleMatch[1];
+    
+    // Remove the title and metadata (first h1 and span)
+    content = content.replace(/<h1[^>]*>.*?<\/h1>/i, "");
+    content = content.replace(/<span\s+class="s95"[^>]*>.*?<\/span>/i, "");
   } else {
-    // Fallback: try to find content div
-    const contentMatch = content.match(/<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-    if (contentMatch) {
-      content = contentMatch[1];
+    // Fallback: try to find main content
+    const mainMatch = content.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+    if (mainMatch) {
+      content = mainMatch[1];
     }
   }
   
-  // Convert HTML to basic markdown
+  // Convert HTML to markdown
   content = content
     .replace(/<h1[^>]*>(.*?)<\/h1>/gi, "# $1\n\n")
     .replace(/<h2[^>]*>(.*?)<\/h2>/gi, "## $1\n\n")
     .replace(/<h3[^>]*>(.*?)<\/h3>/gi, "### $1\n\n")
+    .replace(/<h4[^>]*>(.*?)<\/h4>/gi, "#### $1\n\n")
     .replace(/<p[^>]*>(.*?)<\/p>/gi, "$1\n\n")
-    .replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, "[$2]($1)")
+    .replace(/<a\s+(?:[^>]*\s+)?href="([^"]+)"[^>]*>(.*?)<\/a>/gi, "[$2]($1)")
     .replace(/<strong[^>]*>(.*?)<\/strong>/gi, "**$1**")
+    .replace(/<b[^>]*>(.*?)<\/b>/gi, "**$1**")
     .replace(/<em[^>]*>(.*?)<\/em>/gi, "*$1*")
+    .replace(/<i[^>]*>(.*?)<\/i>/gi, "*$1*")
     .replace(/<code[^>]*>(.*?)<\/code>/gi, "`$1`")
+    .replace(/<pre[^>]*>(.*?)<\/pre>/gi, "```\n$1\n```\n")
+    .replace(/<ul[^>]*>/gi, "")
+    .replace(/<\/ul>/gi, "\n")
+    .replace(/<ol[^>]*>/gi, "")
+    .replace(/<\/ol>/gi, "\n")
     .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
-    .replace(/<ul[^>]*>(.*?)<\/ul>/gi, "$1\n")
     .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<img[^>]*>/gi, "")
+    .replace(/<video[^>]*>[\s\S]*?<\/video>/gi, "")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, "/")
     .replace(/\n\n\n+/g, "\n\n")
     .trim();
+  
+  // Limit content length to avoid very large files
+  if (content.length > 3000) {
+    content = content.substring(0, 3000) + "\n\n...\n\n*Content truncated. Please visit the original article for the full post.*";
+  }
   
   return content || "Content not available. Please visit the original article for full details.";
 }
@@ -172,16 +185,18 @@ function inferTags(title: string, url: string): string[] {
   const text = `${title} ${url}`.toLowerCase();
   
   // Common Haskell-related tags
-  if (text.includes("ghc") || text.includes("compiler")) tags.push("ghc");
+  if (text.includes("ghc") || text.includes("compiler")) tags.push("compiler");
   if (text.includes("release") || text.includes("announce")) tags.push("release");
   if (text.includes("stack")) tags.push("stack");
   if (text.includes("cabal")) tags.push("cabal");
-  if (text.includes("foundation")) tags.push("foundation");
-  if (text.includes("community")) tags.push("community");
+  if (text.includes("hls") || text.includes("language server")) tags.push("tooling");
+  if (text.includes("foundation")) tags.push("community");
   if (text.includes("library") || text.includes("package")) tags.push("library");
-  if (text.includes("tutorial") || text.includes("guide")) tags.push("tutorial");
-  if (text.includes("performance")) tags.push("performance");
+  if (text.includes("tutorial") || text.includes("guide") || text.includes("how to")) tags.push("tutorial");
+  if (text.includes("performance") || text.includes("optimization")) tags.push("performance");
   if (text.includes("security")) tags.push("security");
+  if (text.includes("gsoc") || text.includes("google summer")) tags.push("gsoc");
+  if (text.includes("working group") || text.includes("committee")) tags.push("governance");
   
   // If no tags were inferred, add a general tag
   if (tags.length === 0) {
