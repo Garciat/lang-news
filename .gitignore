@@ -1,0 +1,10 @@
+# Lume build output
+dist/
+_site/
+
+# Deno cache
+.deno/
+
+# OS files
+.DS_Store
+Thumbs.db
