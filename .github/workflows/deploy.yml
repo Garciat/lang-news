@@ -3,6 +3,7 @@ name: Deploy Lume site to Pages
 on:
   push:
     branches: ["main"]
+  pull_request:
   schedule:
     # Refresh every 6 hours at :17 to avoid the busiest top-of-hour queue.
     - cron: "17 */6 * * *"
@@ -10,52 +11,51 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Deno
-        uses: denoland/setup-deno@v1
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: lts
+          cache: true
 
-      - name: Cache Deno dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/deno
-            ~/.deno
-          key: ${{ runner.os }}-deno-${{ hashFiles('deno.json', '_config.ts', 'scripts/news/**') }}
-          restore-keys: |
-            ${{ runner.os }}-deno-
+      - name: Type check
+        run: deno check
 
       - name: Build site
         run: deno task build
 
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
