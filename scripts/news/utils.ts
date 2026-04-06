@@ -21,17 +21,11 @@ interface RenderedPage {
   content: string;
 }
 
-interface HomePageLink {
-  label: string;
-  url: string;
-}
-
 interface HomePageRenderOptions {
   title: string;
   url: string;
   weekLabel?: string;
-  newerPage?: HomePageLink;
-  olderPage?: HomePageLink;
+  weekArchive?: WeekArchiveEntry[];
 }
 
 interface WeeklyArticleGroup {
@@ -41,6 +35,27 @@ interface WeeklyArticleGroup {
   label: string;
   articles: NewsArticle[];
 }
+
+interface WeekArchiveEntry {
+  label: string;
+  url: string;
+  isCurrent: boolean;
+  languageCounts: WeekLanguageCount[];
+}
+
+interface WeekLanguageCount {
+  language: string;
+  count: number;
+}
+
+interface WeeklyPage {
+  fileName: string;
+  title: string;
+  url: string;
+  group: WeeklyArticleGroup;
+}
+
+const WEEK_ARCHIVE_WINDOW = 8;
 
 export async function ensureDir(path: string): Promise<void> {
   await Deno.mkdir(path, { recursive: true });
@@ -239,46 +254,29 @@ export function renderHomePages(articles: NewsArticle[]): RenderedPage[] {
       content: renderHomePage(articles, {
         title: "Lang News",
         url: "/",
+        weekArchive: [],
       }),
     }];
   }
 
-  return weeklyGroups.map((group, index) => {
-    const url = index === 0
-      ? "/"
-      : `/weeks/${group.weekYear}/${group.weekNumber}/`;
-    const newerPage = index > 0
-      ? {
-        label: weeklyGroups[index - 1].label,
-        url: index - 1 === 0
-          ? "/"
-          : `/weeks/${weeklyGroups[index - 1].weekYear}/${
-            weeklyGroups[index - 1].weekNumber
-          }/`,
-      }
-      : undefined;
-    const olderPage = index < weeklyGroups.length - 1
-      ? {
-        label: weeklyGroups[index + 1].label,
-        url: `/weeks/${weeklyGroups[index + 1].weekYear}/${
-          weeklyGroups[index + 1].weekNumber
-        }/`,
-      }
-      : undefined;
+  const weeklyPages: WeeklyPage[] = weeklyGroups.map((group, index) => ({
+    fileName: index === 0
+      ? "index.md"
+      : `week-${group.weekYear}-${group.weekNumber}.md`,
+    title: index === 0 ? "Lang News" : group.label,
+    url: index === 0 ? "/" : `/weeks/${group.weekYear}/${group.weekNumber}/`,
+    group,
+  }));
 
-    return {
-      fileName: index === 0
-        ? "index.md"
-        : `week-${group.weekYear}-${group.weekNumber}.md`,
-      content: renderHomePage(group.articles, {
-        title: index === 0 ? "Lang News" : group.label,
-        url,
-        weekLabel: group.label,
-        newerPage,
-        olderPage,
-      }),
-    };
-  });
+  return weeklyPages.map((page, index) => ({
+    fileName: page.fileName,
+    content: renderHomePage(page.group.articles, {
+      title: page.title,
+      url: page.url,
+      weekLabel: page.group.label,
+      weekArchive: buildWeekArchive(weeklyPages, index),
+    }),
+  }));
 }
 
 function renderHomePage(
@@ -295,14 +293,14 @@ function renderHomePage(
     .join("");
   const weekSummary = options.weekLabel
     ? `<div class="callout">
-  <p class="eyebrow">Weekly archive</p>
+  <p class="eyebrow">Current week</p>
   <h2>${escapeHtml(options.weekLabel)}</h2>
   <p>${articles.length} ${
       articles.length === 1 ? "article" : "articles"
     } collected for this ISO week.</p>
 </div>`
     : "";
-  const weekPagination = renderWeekPagination(options);
+  const weekArchive = renderWeekArchive(options.weekArchive ?? []);
 
 return `---
 title: ${escapeYaml(options.title)}
@@ -316,7 +314,7 @@ Lang News tracks release announcements, language-level feature rollouts, standar
 
 ${weekSummary}
 
-${weekPagination}
+${weekArchive}
 
 <div class="filters">
   <label>
@@ -331,8 +329,6 @@ ${weekPagination}
 <div class="article-feed" id="article-feed">
 ${articleCards}
 </div>
-
-${weekPagination}
 
 <script>
   const languageFilter = document.getElementById("language-filter");
@@ -390,25 +386,66 @@ function renderArticleCard(article: NewsArticle): string {
 </article>`;
 }
 
-function renderWeekPagination(options: HomePageRenderOptions): string {
-  if (!options.newerPage && !options.olderPage) {
+function renderWeekArchive(entries: WeekArchiveEntry[]): string {
+  if (!entries.length) {
     return "";
   }
 
-  const links = [
-    options.newerPage
-      ? `<a href="${escapeHtml(options.newerPage.url)}">← ${
-        escapeHtml(options.newerPage.label)
-      }</a>`
-      : "",
-    options.olderPage
-      ? `<a href="${escapeHtml(options.olderPage.url)}">${
-        escapeHtml(options.olderPage.label)
-      } →</a>`
-      : "",
-  ].filter(Boolean).join(" · ");
+  return `<div class="week-archive">
+  <p class="eyebrow">Week archive</p>
+  <div class="week-archive-list">
+${entries.map((entry) => renderWeekArchiveEntry(entry)).join("\n")}
+  </div>
+</div>`;
+}
 
-  return `<p class="meta">${links}</p>`;
+function renderWeekArchiveEntry(entry: WeekArchiveEntry): string {
+  const chips = entry.languageCounts
+    .map((count) =>
+      `<span class="week-chip">${escapeHtml(count.language)} ${
+        escapeHtml(String(count.count))
+      }</span>`
+    )
+    .join("");
+
+  return `    <section class="week-archive-item${
+    entry.isCurrent ? " is-current" : ""
+  }">
+      <h2 class="week-archive-title"><a href="${escapeHtml(entry.url)}"${
+    entry.isCurrent ? ' aria-current="page"' : ""
+  }>${escapeHtml(entry.label)}</a></h2>
+      <div class="week-chip-list">${chips}</div>
+    </section>`;
+}
+
+function buildWeekArchive(
+  weeklyPages: WeeklyPage[],
+  currentIndex: number,
+): WeekArchiveEntry[] {
+  const maxStart = Math.max(0, weeklyPages.length - WEEK_ARCHIVE_WINDOW);
+  const start = Math.max(
+    0,
+    Math.min(currentIndex - Math.floor(WEEK_ARCHIVE_WINDOW / 2), maxStart),
+  );
+
+  return weeklyPages.slice(start, start + WEEK_ARCHIVE_WINDOW).map((page, index) => ({
+    label: page.group.label,
+    url: page.url,
+    isCurrent: start + index === currentIndex,
+    languageCounts: countArticlesByLanguage(page.group.articles),
+  }));
+}
+
+function countArticlesByLanguage(articles: NewsArticle[]): WeekLanguageCount[] {
+  const counts = new Map<string, number>();
+
+  for (const article of articles) {
+    counts.set(article.language, (counts.get(article.language) ?? 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([language, count]) => ({ language, count }))
+    .sort((a, b) => b.count - a.count || a.language.localeCompare(b.language));
 }
 
 function htmlToText(html: string): string {
@@ -531,7 +568,9 @@ function groupArticlesByWeek(articles: NewsArticle[]): WeeklyArticleGroup[] {
     });
   }
 
-  return Array.from(groups.values());
+  return Array.from(groups.values()).sort((a, b) =>
+    b.weekYear - a.weekYear || b.weekNumber - a.weekNumber
+  );
 }
 
 function getIsoWeekInfo(value: string): {
