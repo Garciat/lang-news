@@ -1,7 +1,5 @@
 export const NEWS_ARTICLES_DIR = "src/generated/articles";
 export const NEWS_SITE_DIR = "src/generated/site";
-export const NEWS_DATA_PATH = "src/generated/news.json";
-export const NEWS_META_PATH = "src/_data/news_meta.json";
 
 export interface ArticleSourceConfig {
   id: string;
@@ -64,12 +62,4 @@ export interface SourceRunResult {
   articleCount: number;
   status: "success" | "error";
   error?: string;
-}
-
-export interface NewsMeta {
-  generatedAt: string;
-  articleCount: number;
-  languages: string[];
-  sources: SourceRunResult[];
-  inclusionRules: string[];
 }

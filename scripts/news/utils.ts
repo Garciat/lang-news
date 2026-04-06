@@ -1,5 +1,5 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
-import { dirname, join } from "@std/path";
+import { join } from "@std/path";
 import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import {
   type ArticleSourceConfig,
@@ -255,11 +255,6 @@ export async function loadArticleSummaries(
   }
 
   return articles.sort((a, b) => b.date.localeCompare(a.date));
-}
-
-export async function writeJson(path: string, data: unknown): Promise<void> {
-  await ensureDir(dirname(path));
-  await Deno.writeTextFile(path, `${JSON.stringify(data, null, 2)}\n`);
 }
 
 export async function clearDir(path: string): Promise<void> {

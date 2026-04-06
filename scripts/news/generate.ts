@@ -16,10 +16,7 @@ import { swiftAdapter } from "./adapters/swift.ts";
 import { typescriptAdapter } from "./adapters/typescript.ts";
 import {
   NEWS_ARTICLES_DIR,
-  NEWS_DATA_PATH,
-  NEWS_META_PATH,
   NEWS_SITE_DIR,
-  type NewsMeta,
   type NewsArticle,
   type SourceAdapter,
   type SourceRunResult,
@@ -27,11 +24,9 @@ import {
 import {
   clearDir,
   ensureDir,
-  INCLUSION_RULES,
   loadArticleSummaries,
   renderHomePages,
   renderLanguagePage,
-  writeJson,
 } from "./utils.ts";
 
 const adapters: SourceAdapter[] = [
@@ -54,8 +49,6 @@ const adapters: SourceAdapter[] = [
 const repoRoot = Deno.cwd();
 const articlesRoot = join(repoRoot, NEWS_ARTICLES_DIR);
 const siteRoot = join(repoRoot, NEWS_SITE_DIR);
-const newsDataPath = join(repoRoot, NEWS_DATA_PATH);
-const newsMetaPath = join(repoRoot, NEWS_META_PATH);
 
 const collectedAt = new Date().toISOString();
 const sourceResults: SourceRunResult[] = [];
@@ -111,18 +104,6 @@ for (const language of languages) {
     renderLanguagePage(language, languageArticles[0].languageSlug, languageArticles),
   );
 }
-
-await writeJson(newsDataPath, articles);
-
-const meta: NewsMeta = {
-  generatedAt: collectedAt,
-  articleCount: articles.length,
-  languages,
-  sources: sourceResults,
-  inclusionRules: INCLUSION_RULES,
-};
-
-await writeJson(newsMetaPath, meta);
 
 function groupArticlesByLanguage(
   articles: NewsArticle[],
