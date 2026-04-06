@@ -89,18 +89,20 @@ export function parseFeed(xml: string): RawFeedEntry[] {
   const entries = doc
     ? toFeedNodes(doc.querySelectorAll("item, entry"))
     : [];
+  const rawEntries = matchFeedEntryBlocks(xml);
 
   if (!entries.length) {
     throw new Error("Feed did not contain any item or entry elements.");
   }
 
-  const parsedEntries: Array<RawFeedEntry | null> = Array.from(entries, (entry) => {
-    const title = readFeedText(entry, ["title"]);
-    const url = extractFeedUrl(entry) || readFeedText(entry, ["id", "link"]);
-    const publishedAt = readFeedText(entry, ["pubdate", "published", "updated"]);
-    const updatedAt = readFeedText(entry, ["updated"]);
-    const summaryHtml = readFeedInnerHtml(entry, ["description", "summary"]);
-    const contentHtml = readFeedInnerHtml(entry, ["content:encoded", "content"]);
+  const parsedEntries: Array<RawFeedEntry | null> = Array.from(entries, (entry, index) => {
+    const rawEntry = rawEntries[index] ?? "";
+    const title = readFeedText(entry, ["title"], rawEntry);
+    const url = extractFeedUrl(entry, rawEntry) || readFeedText(entry, ["id", "link"], rawEntry);
+    const publishedAt = readFeedText(entry, ["pubdate", "published", "updated"], rawEntry);
+    const updatedAt = readFeedText(entry, ["updated"], rawEntry);
+    const summaryHtml = readFeedInnerHtml(entry, ["description", "summary"], rawEntry);
+    const contentHtml = readFeedInnerHtml(entry, ["content:encoded", "content"], rawEntry);
 
     if (!title || !url || !publishedAt) {
       return null;
@@ -833,31 +835,41 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function readFeedText(element: FeedNode, tagNames: string[]): string {
+function readFeedText(element: FeedNode, tagNames: string[], rawEntry = ""): string {
   for (const tagName of tagNames) {
     const node = findFeedNode(element, tagName);
     const text = node?.textContent?.trim();
     if (text) {
       return text;
     }
-  }
 
-  return "";
-}
-
-function readFeedInnerHtml(element: FeedNode, tagNames: string[]): string {
-  for (const tagName of tagNames) {
-    const node = findFeedNode(element, tagName);
-    const html = node?.innerHTML?.trim();
-    if (html) {
-      return html;
+    const rawText = readFeedTagTextFromXml(rawEntry, tagName);
+    if (rawText) {
+      return rawText;
     }
   }
 
   return "";
 }
 
-function extractFeedUrl(element: FeedNode): string {
+function readFeedInnerHtml(element: FeedNode, tagNames: string[], rawEntry = ""): string {
+  for (const tagName of tagNames) {
+    const node = findFeedNode(element, tagName);
+    const html = node?.innerHTML?.trim();
+    if (html) {
+      return html;
+    }
+
+    const rawHtml = readFeedTagInnerXml(rawEntry, tagName);
+    if (rawHtml) {
+      return rawHtml;
+    }
+  }
+
+  return "";
+}
+
+function extractFeedUrl(element: FeedNode, rawEntry = ""): string {
   const links = findFeedNodes(element, "link");
   let fallbackUrl = "";
 
@@ -881,7 +893,7 @@ function extractFeedUrl(element: FeedNode): string {
     }
   }
 
-  return fallbackUrl;
+  return fallbackUrl || readFeedTagTextFromXml(rawEntry, "link");
 }
 
 function findFeedNode(element: FeedNode, tagName: string): FeedNode | null {
@@ -906,6 +918,28 @@ function isFeedNode(value: unknown): value is FeedNode {
 
   return "textContent" in value && "innerHTML" in value && "tagName" in value &&
     "getAttribute" in value && "querySelectorAll" in value;
+}
+
+function matchFeedEntryBlocks(xml: string): string[] {
+  return Array.from(xml.matchAll(/<(item|entry)\b[\s\S]*?<\/\1>/gi), (match) => match[0]);
+}
+
+function readFeedTagTextFromXml(xml: string, tagName: string): string {
+  const innerXml = readFeedTagInnerXml(xml, tagName);
+  return innerXml ? cleanWhitespace(innerXml.replace(/<[^>]+>/g, " ")) : "";
+}
+
+function readFeedTagInnerXml(xml: string, tagName: string): string {
+  if (!xml) {
+    return "";
+  }
+
+  const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = xml.match(
+    new RegExp(`<${escapedTagName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, "i"),
+  );
+
+  return match?.[1]?.trim() ?? "";
 }
 
 function normalizeText(text: string): string {
