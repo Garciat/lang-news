@@ -27,14 +27,14 @@ const siteRoot = join(repoRoot, NEWS_SITE_DIR);
 const newsDataPath = join(repoRoot, NEWS_DATA_PATH);
 const newsMetaPath = join(repoRoot, NEWS_META_PATH);
 
-const fetchedAt = new Date().toISOString();
+const collectedAt = new Date().toISOString();
 const sourceResults: SourceRunResult[] = [];
 
 await ensureDir(articlesRoot);
 
 for (const adapter of adapters) {
   try {
-    const articles = await adapter.scrape({ outputDir: articlesRoot, fetchedAt });
+    const articles = await adapter.scrape({ outputDir: articlesRoot, collectedAt });
     sourceResults.push({
       sourceId: adapter.config.id,
       language: adapter.config.language,
@@ -74,7 +74,7 @@ for (const language of languages) {
 await writeJson(newsDataPath, articles);
 
 const meta: NewsMeta = {
-  generatedAt: fetchedAt,
+  generatedAt: collectedAt,
   articleCount: articles.length,
   languages,
   categories: Array.from(new Set(articles.map((article) => article.category))).sort(),

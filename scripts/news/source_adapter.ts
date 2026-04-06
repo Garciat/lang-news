@@ -11,7 +11,7 @@ export async function runFeedAdapter(
     .filter((entry) => shouldIncludeEntry(config, entry));
 
   const articles = uniqueByCanonicalUrl(await Promise.all(
-    entries.map((entry) => normalizeEntry(config, entry, context.fetchedAt)),
+    entries.map((entry) => normalizeEntry(config, entry, context.collectedAt)),
   ));
 
   const outputDir = join(context.outputDir, config.id);

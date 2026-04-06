@@ -85,7 +85,7 @@ export function shouldIncludeEntry(config: ArticleSourceConfig, entry: RawFeedEn
 export async function normalizeEntry(
   config: ArticleSourceConfig,
   entry: RawFeedEntry,
-  fetchedAt: string,
+  collectedAt: string,
 ): Promise<NewsArticle> {
   const canonicalUrl = normalizeUrl(entry.url);
   const content = htmlToText(entry.contentHtml ?? entry.summaryHtml ?? "");
@@ -117,8 +117,8 @@ export async function normalizeEntry(
     summary,
     content,
     tags,
-    fetchedAt,
-    updatedAt: fetchedAt,
+    collectedAt,
+    updatedAt: collectedAt,
     sourceUpdatedAt: entry.updatedAt ? normalizeDate(entry.updatedAt) : undefined,
     contentHash,
     url,
@@ -144,7 +144,7 @@ export async function writeArticleFile(directory: string, article: NewsArticle):
   const existing = await readArticleFile(filePath);
   const updatedAt = existing && existing.contentHash === article.contentHash
     ? existing.updatedAt
-    : article.fetchedAt;
+    : article.collectedAt;
   const nextArticle = { ...article, updatedAt };
 
   await Deno.writeTextFile(filePath, renderArticleMarkdown(nextArticle));
@@ -395,7 +395,7 @@ canonicalUrl: ${escapeYaml(article.canonicalUrl)}
 category: ${article.category}
 version: ${article.version ? escapeYaml(article.version) : ""}
 summary: ${escapeYaml(article.summary)}
-fetchedAt: ${article.fetchedAt}
+collectedAt: ${article.collectedAt}
 updatedAt: ${article.updatedAt}
 sourceUpdatedAt: ${article.sourceUpdatedAt ?? ""}
 contentHash: ${article.contentHash}
@@ -433,7 +433,7 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       summary: toString(record.summary),
       content: body.trim(),
       tags,
-      fetchedAt: toString(record.fetchedAt),
+      collectedAt: toString(record.collectedAt),
       updatedAt: toString(record.updatedAt),
       sourceUpdatedAt: optionalString(record.sourceUpdatedAt),
       contentHash: toString(record.contentHash),
@@ -508,7 +508,7 @@ function escapeHtml(value: string): string {
 
 function decodeHtml(value: string): string {
   return value
-    .replace(/&(amp|lt|gt|quot|apos);/g, (_, entity) => {
+    .replace(/&(amp|lt|gt|quot|apos);/g, (fullMatch, entity) => {
       switch (entity) {
         case "amp":
           return "&";
@@ -521,7 +521,7 @@ function decodeHtml(value: string): string {
         case "apos":
           return "'";
         default:
-          return _;
+          return fullMatch;
       }
     })
     .replace(/&#39;/g, "'")
@@ -542,12 +542,14 @@ function formatDate(value: string): string {
 }
 
 function matchBlocks(xml: string, tagName: string): string[] {
-  return Array.from(xml.matchAll(new RegExp(`<${tagName}\\b[\\s\\S]*?<\\/${tagName}>`, "gi")), (match) => match[0]);
+  return Array.from(
+    xml.matchAll(new RegExp(`<${tagName}\\b[\\s\\S]*?<\\/${tagName}>`, "gi")),
+    (matchedBlock) => matchedBlock[0],
+  );
 }
 
 function extractTag(block: string, tagName: string): string {
-  const escapedTagName = tagName.replace(":", "\\:");
-  const match = block.match(new RegExp(`<${escapedTagName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, "i"));
+  const match = block.match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
   return match?.[1]?.trim() ?? "";
 }
 

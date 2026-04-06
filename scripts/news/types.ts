@@ -46,7 +46,7 @@ export interface NewsArticle {
   summary: string;
   content: string;
   tags: string[];
-  fetchedAt: string;
+  collectedAt: string;
   updatedAt: string;
   sourceUpdatedAt?: string;
   contentHash: string;
@@ -56,7 +56,7 @@ export interface NewsArticle {
 
 export interface ScraperContext {
   outputDir: string;
-  fetchedAt: string;
+  collectedAt: string;
 }
 
 export interface SourceAdapter {
