@@ -31,7 +31,6 @@ interface HomePageRenderOptions {
 interface WeeklyArticleGroup {
   weekYear: number;
   weekNumber: number;
-  totalWeeks: number;
   label: string;
   articles: NewsArticle[];
 }
@@ -540,7 +539,7 @@ function groupArticlesByWeek(articles: NewsArticle[]): WeeklyArticleGroup[] {
   const groups = new Map<string, WeeklyArticleGroup>();
 
   for (const article of articles) {
-    const { weekYear, weekNumber, totalWeeks } = getIsoWeekInfo(article.date);
+    const { weekYear, weekNumber } = getIsoWeekInfo(article.date);
     const key = `${weekYear}-${weekNumber}`;
     const existing = groups.get(key);
 
@@ -552,8 +551,7 @@ function groupArticlesByWeek(articles: NewsArticle[]): WeeklyArticleGroup[] {
     groups.set(key, {
       weekYear,
       weekNumber,
-      totalWeeks,
-      label: `${weekYear} Week ${weekNumber}/${totalWeeks}`,
+      label: `${weekYear} Week ${weekNumber}`,
       articles: [article],
     });
   }
@@ -566,7 +564,6 @@ function groupArticlesByWeek(articles: NewsArticle[]): WeeklyArticleGroup[] {
 function getIsoWeekInfo(value: string): {
   weekYear: number;
   weekNumber: number;
-  totalWeeks: number;
 } {
   const date = new Date(value);
 
@@ -578,7 +575,6 @@ function getIsoWeekInfo(value: string): {
   return {
     weekYear,
     weekNumber,
-    totalWeeks: getIsoWeeksInYear(weekYear),
   };
 }
 
@@ -598,10 +594,6 @@ function getIsoWeekParts(date: Date): { weekYear: number; weekNumber: number } {
   );
 
   return { weekYear, weekNumber };
-}
-
-function getIsoWeeksInYear(year: number): number {
-  return getIsoWeekParts(new Date(Date.UTC(year, 11, 28))).weekNumber;
 }
 
 function renderArticleMarkdown(article: NewsArticle): string {
