@@ -33,12 +33,18 @@ jobs:
       - name: Type check
         run: deno check
 
-      - name: Build site
-        run: deno task build
-
       - name: Setup Pages
+        id: setup-pages
         if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
+
+      - name: Build site
+        run: |
+          if [ -n "${{ steps.setup-pages.outputs.base_url }}" ]; then
+            deno task build --location="${{ steps.setup-pages.outputs.base_url }}"
+          else
+            deno task build
+          fi
 
       - name: Upload artifact
         if: github.event_name != 'pull_request'

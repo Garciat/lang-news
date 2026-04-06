@@ -5,35 +5,10 @@ import vento from "https://deno.land/x/lume@v1.19.4/plugins/vento.ts";
 const site = lume({
   src: "./src",
   dest: "./dist",
-  location: new URL(`https://example.com${getBasePath()}`),
+  location: new URL("https://example.com/"),
 });
 
 site.use(basePath());
 site.use(vento());
 
 export default site;
-
-function getBasePath(): string {
-  const repository = Deno.env.get("GITHUB_REPOSITORY");
-
-  if (!repository) {
-    return "/";
-  }
-
-  const [repoOwner = "", repo = ""] = repository.split("/", 2);
-  const owner = Deno.env.get("GITHUB_REPOSITORY_OWNER") ?? repoOwner;
-
-  if (!repo) {
-    return "/";
-  }
-
-  if (owner) {
-    const ownerLower = owner.toLowerCase();
-
-    if (repo.toLowerCase() === `${ownerLower}.github.io`) {
-      return "/";
-    }
-  }
-
-  return `/${repo}/`;
-}
