@@ -48,7 +48,7 @@ The ingestion pipeline lives in `scripts/news/` and is organized around:
 
 - a canonical article model shared by all sources
 - source adapters for each official feed
-- shared normalization, deduplication, and content-writing utilities
+- shared normalization, deduplication, and summary-writing utilities
 - generated markdown content under `src/generated/`
 
 ## Project structure

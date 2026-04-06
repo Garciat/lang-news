@@ -55,9 +55,6 @@ export function parseFeed(xml: string): RawFeedEntry[] {
       extractTag(block, "updated");
     const updatedAt = extractTag(block, "updated");
     const summaryHtml = extractTag(block, "description") || extractTag(block, "summary");
-    // RSS 2.0 feeds often publish full entry bodies inside the namespaced content:encoded field.
-    const contentHtml = extractTag(block, "content:encoded") || extractTag(block, "content");
-
     if (!title || !url || !publishedAt) {
       throw new Error("Feed entry is missing required fields.");
     }
@@ -68,13 +65,12 @@ export function parseFeed(xml: string): RawFeedEntry[] {
       publishedAt: decodeHtml(publishedAt),
       updatedAt: updatedAt ? decodeHtml(updatedAt) : undefined,
       summaryHtml: summaryHtml ? decodeHtml(summaryHtml) : undefined,
-      contentHtml: contentHtml ? decodeHtml(contentHtml) : undefined,
     } satisfies RawFeedEntry;
   });
 }
 
 export function shouldIncludeEntry(config: ArticleSourceConfig, entry: RawFeedEntry): boolean {
-  const haystack = `${entry.title}\n${stripHtml(entry.summaryHtml ?? "")}\n${stripHtml(entry.contentHtml ?? "")}`;
+  const haystack = `${entry.title}\n${htmlToSummaryText(entry.summaryHtml ?? "")}`;
 
   if (config.excludePatterns?.some((pattern) => pattern.test(haystack))) {
     return false;
@@ -89,11 +85,10 @@ export async function normalizeEntry(
   collectedAt: string,
 ): Promise<NewsArticle> {
   const canonicalUrl = normalizeUrl(entry.url);
-  const content = htmlToText(entry.contentHtml ?? entry.summaryHtml ?? "");
-  const summarySource = htmlToText(entry.summaryHtml ?? entry.contentHtml ?? "");
-  const summary = truncate(summarySource || content, 280);
-  const category = inferCategory(entry.title, `${summary}\n${content}`);
-  const version = detectVersion(entry.title) ?? detectVersion(content);
+  const summarySource = htmlToSummaryText(entry.summaryHtml ?? "");
+  const summary = truncate(summarySource || cleanWhitespace(entry.title), 280);
+  const category = inferCategory(entry.title, summary);
+  const version = detectVersion(entry.title) ?? detectVersion(summary);
   const id = `${slugify(config.language)}-${await shortHash(canonicalUrl)}`;
   const date = normalizeDate(entry.publishedAt);
   const url = `/articles/${config.id}/${date.slice(0, 10)}-${id}/`;
@@ -103,7 +98,7 @@ export async function normalizeEntry(
     "official",
     ...config.tags,
   ]);
-  const contentHash = await shortHash(`${entry.title}\n${summary}\n${content}`);
+  const contentHash = await shortHash(`${entry.title}\n${summary}`);
 
   return {
     id,
@@ -116,7 +111,6 @@ export async function normalizeEntry(
     category,
     version,
     summary,
-    content,
     tags,
     collectedAt,
     updatedAt: collectedAt,
@@ -318,8 +312,8 @@ function htmlToText(html: string): string {
   return normalizeText(doc.body.textContent ?? decoded);
 }
 
-function stripHtml(html: string): string {
-  return htmlToText(html);
+function htmlToSummaryText(html: string): string {
+  return cleanSummaryText(htmlToText(html));
 }
 
 function normalizeUrl(url: string): string {
@@ -364,6 +358,12 @@ function cleanWhitespace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+function cleanSummaryText(text: string): string {
+  return cleanWhitespace(text)
+    .replace(/^["'“”‘’]+\s*/, "")
+    .replace(/\s*["'“”‘’]+$/, "");
+}
+
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -386,8 +386,6 @@ function uniqueValues(values: string[]): string[] {
 }
 
 function renderArticleMarkdown(article: NewsArticle): string {
-  const body = article.content || article.summary;
-
   return `---
 title: ${escapeYaml(article.title)}
 layout: article.vto
@@ -410,8 +408,6 @@ contentHash: ${article.contentHash}
 tags:
 ${article.tags.map((tag) => `  - ${escapeYaml(tag)}`).join("\n")}
 ---
-
-${body}
 `;
 }
 
@@ -424,7 +420,7 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       return null;
     }
 
-    const [, frontMatter, body] = match;
+    const [, frontMatter] = match;
     const record = parseFrontMatter(frontMatter);
     const tags = Array.isArray(record.tags) ? record.tags : [];
 
@@ -439,7 +435,6 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       category: toString(record.category) as ArticleCategory,
       version: optionalString(record.version),
       summary: toString(record.summary),
-      content: body.trim(),
       tags,
       collectedAt: toString(record.collectedAt),
       updatedAt: toString(record.updatedAt),

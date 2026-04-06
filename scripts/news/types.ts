@@ -30,7 +30,6 @@ export interface RawFeedEntry {
   publishedAt: string;
   updatedAt?: string;
   summaryHtml?: string;
-  contentHtml?: string;
 }
 
 export interface NewsArticle {
@@ -44,7 +43,6 @@ export interface NewsArticle {
   category: ArticleCategory;
   version?: string;
   summary: string;
-  content: string;
   tags: string[];
   collectedAt: string;
   updatedAt: string;

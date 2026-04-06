@@ -39,9 +39,12 @@
       color: var(--muted);
       margin: 0.25rem 0;
     }
-    .body {
+    .summary {
       margin-top: 1.5rem;
-      white-space: pre-wrap;
+      font-size: 1.05rem;
+    }
+    .actions {
+      margin-top: 1.5rem;
     }
   </style>
 </head>
@@ -56,7 +59,10 @@
       <p class="meta">Source: <a href="{{ canonicalUrl }}">{{ sourceName }}</a></p>
       {{ if version }}<p class="meta">Version: {{ version }}</p>{{ /if }}
       {{ if updatedAt && new Date(updatedAt).getTime() !== new Date(collectedAt).getTime() }}<p class="meta">Updated in Lang News: {{ updatedAt }}</p>{{ /if }}
-      <div class="body">{{ content }}</div>
+      <div class="summary">
+        <p>{{ summary }}</p>
+      </div>
+      <p class="actions"><a href="{{ canonicalUrl }}">Read the full article at the source →</a></p>
     </article>
   </main>
   <footer>

@@ -8,6 +8,8 @@ url: /methodology/
 
 Lang News only aggregates items from official or primary language sources.
 
+It publishes short summaries and links back to the original source instead of republishing full article bodies.
+
 ## Inclusion rules
 
 - Official language sites, blogs, feeds, or standards bodies only.
