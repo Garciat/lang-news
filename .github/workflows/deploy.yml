@@ -39,9 +39,11 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Build site
+        env:
+          PAGES_BASE_URL: ${{ steps.setup-pages.outputs.base_url }}
         run: |
-          if [ -n "${{ steps.setup-pages.outputs.base_url }}" ]; then
-            deno task build --location="${{ steps.setup-pages.outputs.base_url }}"
+          if [ -n "$PAGES_BASE_URL" ]; then
+            deno task build --location="$PAGES_BASE_URL"
           else
             deno task build
           fi
