@@ -1,13 +1,17 @@
 import { csharpAdapter } from "./adapters/csharp.ts";
 import { dAdapter } from "./adapters/d.ts";
+import { elixirAdapter } from "./adapters/elixir.ts";
+import { erlangAdapter } from "./adapters/erlang.ts";
 import { goAdapter } from "./adapters/go.ts";
 import { haskellAdapter } from "./adapters/haskell.ts";
 import { javaAdapter } from "./adapters/java.ts";
 import { join } from "@std/path";
 import { kotlinAdapter } from "./adapters/kotlin.ts";
+import { phpAdapter } from "./adapters/php.ts";
 import { pythonAdapter } from "./adapters/python.ts";
 import { rustAdapter } from "./adapters/rust.ts";
 import { rubyAdapter } from "./adapters/ruby.ts";
+import { scalaAdapter } from "./adapters/scala.ts";
 import { swiftAdapter } from "./adapters/swift.ts";
 import { typescriptAdapter } from "./adapters/typescript.ts";
 import {
@@ -34,9 +38,13 @@ const adapters: SourceAdapter[] = [
   pythonAdapter,
   javaAdapter,
   dAdapter,
+  scalaAdapter,
   goAdapter,
   haskellAdapter,
   kotlinAdapter,
+  elixirAdapter,
+  erlangAdapter,
+  phpAdapter,
   rubyAdapter,
   swiftAdapter,
   typescriptAdapter,

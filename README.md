@@ -22,9 +22,13 @@ coverage.
 - Python Insider
 - Inside Java
 - The D Blog
+- Scala Blog
 - The Go Blog
 - Haskell Blog
 - Kotlin Blog
+- Elixir Blog
+- Erlang/OTP Blog
+- PHP.net Releases
 - Ruby News
 - Swift.org Blog
 - TypeScript Blog

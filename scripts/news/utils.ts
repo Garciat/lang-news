@@ -85,8 +85,8 @@ export function parseFeed(xml: string): RawFeedEntry[] {
 
   return entryBlocks.map((block) => {
     const title = extractTag(block, "title");
-    const url = extractLink(block) || extractTag(block, "link") ||
-      extractTag(block, "id");
+    const url = extractLink(block) || extractTag(block, "id") ||
+      extractTag(block, "link");
     const publishedAt = extractTag(block, "pubDate") ||
       extractTag(block, "published") ||
       extractTag(block, "updated");
@@ -796,15 +796,27 @@ function extractTag(block: string, tagName: string): string {
 }
 
 function extractLink(block: string): string {
-  const alternateMatch = block.match(
-    /<link\b[^>]*href="([^"]+)"[^>]*rel="alternate"[^>]*\/?>/i,
-  );
-  if (alternateMatch?.[1]) {
-    return alternateMatch[1].trim();
+  const linkMatches = block.matchAll(/<link\b([^>]*)\/?>/gi);
+  let fallbackUrl = "";
+
+  for (const match of linkMatches) {
+    const attrs = match[1] ?? "";
+    const href = attrs.match(/\bhref="([^"]+)"/i)?.[1]?.trim();
+    if (!href) {
+      continue;
+    }
+
+    const rel = attrs.match(/\brel="([^"]+)"/i)?.[1]?.toLowerCase() ?? "";
+    if (rel.includes("alternate")) {
+      return href;
+    }
+
+    if (!rel || (!rel.includes("self") && !rel.includes("enclosure"))) {
+      fallbackUrl = fallbackUrl || href;
+    }
   }
 
-  const fallbackMatch = block.match(/<link\b[^>]*href="([^"]+)"[^>]*\/?>/i);
-  return fallbackMatch?.[1]?.trim() ?? "";
+  return fallbackUrl;
 }
 
 function normalizeText(text: string): string {
