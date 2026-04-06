@@ -21,15 +21,18 @@ function getBasePath(): string {
     return "/";
   }
 
-  const repositoryParts = repository.split("/", 2);
-  const repo = repositoryParts[1];
+  const [, repo = ""] = repository.split("/", 2);
 
   if (!repo) {
     return "/";
   }
 
-  if (owner && repo.toLowerCase() === `${owner.toLowerCase()}.github.io`) {
-    return "/";
+  if (owner) {
+    const ownerLower = owner.toLowerCase();
+
+    if (repo.toLowerCase() === `${ownerLower}.github.io`) {
+      return "/";
+    }
   }
 
   return `/${repo}/`;
