@@ -29,6 +29,32 @@ export const INCLUSION_RULES = [
   "Skip tutorials, opinion posts, community roundups, and third-party ecosystem coverage that is not clearly language-level news.",
 ];
 
+interface RenderedPage {
+  fileName: string;
+  content: string;
+}
+
+interface HomePageLink {
+  label: string;
+  url: string;
+}
+
+interface HomePageRenderOptions {
+  title: string;
+  url: string;
+  weekLabel?: string;
+  newerPage?: HomePageLink;
+  olderPage?: HomePageLink;
+}
+
+interface WeeklyArticleGroup {
+  weekYear: number;
+  weekNumber: number;
+  totalWeeks: number;
+  label: string;
+  articles: NewsArticle[];
+}
+
 export async function ensureDir(path: string): Promise<void> {
   await Deno.mkdir(path, { recursive: true });
 }
@@ -219,7 +245,61 @@ export async function clearDir(path: string): Promise<void> {
   await ensureDir(path);
 }
 
-export function renderHomePage(articles: NewsArticle[]): string {
+export function renderHomePages(articles: NewsArticle[]): RenderedPage[] {
+  const weeklyGroups = groupArticlesByWeek(articles);
+
+  if (!weeklyGroups.length) {
+    return [{
+      fileName: "index.md",
+      content: renderHomePage(articles, {
+        title: "Lang News",
+        url: "/",
+      }),
+    }];
+  }
+
+  return weeklyGroups.map((group, index) => {
+    const url = index === 0
+      ? "/"
+      : `/weeks/${group.weekYear}/${group.weekNumber}/`;
+    const newerPage = index > 0
+      ? {
+        label: weeklyGroups[index - 1].label,
+        url: index - 1 === 0
+          ? "/"
+          : `/weeks/${weeklyGroups[index - 1].weekYear}/${
+            weeklyGroups[index - 1].weekNumber
+          }/`,
+      }
+      : undefined;
+    const olderPage = index < weeklyGroups.length - 1
+      ? {
+        label: weeklyGroups[index + 1].label,
+        url: `/weeks/${weeklyGroups[index + 1].weekYear}/${
+          weeklyGroups[index + 1].weekNumber
+        }/`,
+      }
+      : undefined;
+
+    return {
+      fileName: index === 0
+        ? "index.md"
+        : `week-${group.weekYear}-${group.weekNumber}.md`,
+      content: renderHomePage(group.articles, {
+        title: index === 0 ? "Lang News" : group.label,
+        url,
+        weekLabel: group.label,
+        newerPage,
+        olderPage,
+      }),
+    };
+  });
+}
+
+function renderHomePage(
+  articles: NewsArticle[],
+  options: HomePageRenderOptions,
+): string {
   const languages = uniqueValues(articles.map((article) => article.language))
     .sort();
   const categories = uniqueValues(articles.map((article) => article.category))
@@ -237,16 +317,30 @@ export function renderHomePage(articles: NewsArticle[]): string {
       }</option>`
     )
     .join("");
+  const weekSummary = options.weekLabel
+    ? `<div class="callout">
+  <p class="eyebrow">Weekly archive</p>
+  <h2>${escapeHtml(options.weekLabel)}</h2>
+  <p>${articles.length} ${
+      articles.length === 1 ? "article" : "articles"
+    } collected for this ISO week.</p>
+</div>`
+    : "";
+  const weekPagination = renderWeekPagination(options);
 
   return `---
-title: Lang News
-layout: layout.vto
-url: /
----
+ title: ${escapeYaml(options.title)}
+ layout: layout.vto
+ url: ${options.url}
+ ---
 
 # Programming language news from official sources
 
 Lang News tracks release announcements, language-level feature rollouts, standards updates, and roadmap posts from the primary sites for each language.
+
+${weekSummary}
+
+${weekPagination}
 
 <div class="filters">
   <label>
@@ -268,6 +362,8 @@ Lang News tracks release announcements, language-level feature rollouts, standar
 <div class="article-feed" id="article-feed">
 ${articleCards}
 </div>
+
+${weekPagination}
 
 <script>
   const languageFilter = document.getElementById("language-filter");
@@ -326,6 +422,27 @@ function renderArticleCard(article: NewsArticle): string {
     escapeHtml(article.sourceName)
   }</a></p>
 </article>`;
+}
+
+function renderWeekPagination(options: HomePageRenderOptions): string {
+  if (!options.newerPage && !options.olderPage) {
+    return "";
+  }
+
+  const links = [
+    options.newerPage
+      ? `<a href="${escapeHtml(options.newerPage.url)}">← ${
+        escapeHtml(options.newerPage.label)
+      }</a>`
+      : "",
+    options.olderPage
+      ? `<a href="${escapeHtml(options.olderPage.url)}">${
+        escapeHtml(options.olderPage.label)
+      } →</a>`
+      : "",
+  ].filter(Boolean).join(" · ");
+
+  return `<p class="meta">${links}</p>`;
 }
 
 function htmlToText(html: string): string {
@@ -434,6 +551,72 @@ async function shortHash(value: string): Promise<string> {
 
 function uniqueValues(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function groupArticlesByWeek(articles: NewsArticle[]): WeeklyArticleGroup[] {
+  const groups = new Map<string, WeeklyArticleGroup>();
+
+  for (const article of articles) {
+    const { weekYear, weekNumber, totalWeeks } = getIsoWeekInfo(article.date);
+    const key = `${weekYear}-${weekNumber}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.articles.push(article);
+      continue;
+    }
+
+    groups.set(key, {
+      weekYear,
+      weekNumber,
+      totalWeeks,
+      label: `${weekYear} Week ${weekNumber}/${totalWeeks}`,
+      articles: [article],
+    });
+  }
+
+  return Array.from(groups.values());
+}
+
+function getIsoWeekInfo(value: string): {
+  weekYear: number;
+  weekNumber: number;
+  totalWeeks: number;
+} {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid week date: ${value}`);
+  }
+
+  const { weekYear, weekNumber } = getIsoWeekParts(date);
+  return {
+    weekYear,
+    weekNumber,
+    totalWeeks: getIsoWeeksInYear(weekYear),
+  };
+}
+
+function getIsoWeekParts(date: Date): { weekYear: number; weekNumber: number } {
+  const utcDate = new Date(Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate(),
+  ));
+  const dayOfWeek = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayOfWeek);
+
+  const weekYear = utcDate.getUTCFullYear();
+  const startOfYear = new Date(Date.UTC(weekYear, 0, 1));
+  const weekNumber = Math.ceil(
+    ((utcDate.getTime() - startOfYear.getTime()) / 86400000 + 1) / 7,
+  );
+
+  return { weekYear, weekNumber };
+}
+
+function getIsoWeeksInYear(year: number): number {
+  return getIsoWeekParts(new Date(Date.UTC(year, 11, 28))).weekNumber;
 }
 
 function renderArticleMarkdown(article: NewsArticle): string {

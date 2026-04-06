@@ -11,11 +11,11 @@ import {
   type SourceRunResult,
 } from "./types.ts";
 import {
-  INCLUSION_RULES,
   clearDir,
   ensureDir,
+  INCLUSION_RULES,
   loadArticleSummaries,
-  renderHomePage,
+  renderHomePages,
   renderLanguagePage,
   writeJson,
 } from "./utils.ts";
@@ -34,14 +34,19 @@ await ensureDir(articlesRoot);
 
 for (const adapter of adapters) {
   try {
-    const articles = await adapter.scrape({ outputDir: articlesRoot, collectedAt });
+    const articles = await adapter.scrape({
+      outputDir: articlesRoot,
+      collectedAt,
+    });
     sourceResults.push({
       sourceId: adapter.config.id,
       language: adapter.config.language,
       articleCount: articles.length,
       status: "success",
     });
-    console.log(`Fetched ${articles.length} articles from ${adapter.config.sourceName}`);
+    console.log(
+      `Fetched ${articles.length} articles from ${adapter.config.sourceName}`,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     sourceResults.push({
@@ -56,17 +61,26 @@ for (const adapter of adapters) {
 }
 
 const articles = await loadArticleSummaries(articlesRoot);
-const languages = Array.from(new Set(articles.map((article) => article.language))).sort();
+const languages = Array.from(
+  new Set(articles.map((article) => article.language)),
+).sort();
 
 await clearDir(siteRoot);
-await Deno.writeTextFile(join(siteRoot, "index.md"), renderHomePage(articles));
+for (const page of renderHomePages(articles)) {
+  await Deno.writeTextFile(join(siteRoot, page.fileName), page.content);
+}
 
 const languagesDir = join(siteRoot, "languages");
 await ensureDir(languagesDir);
 for (const language of languages) {
-  const languageArticles = articles.filter((article) => article.language === language);
+  const languageArticles = articles.filter((article) =>
+    article.language === language
+  );
   await Deno.writeTextFile(
-    join(languagesDir, `${language.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`),
+    join(
+      languagesDir,
+      `${language.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`,
+    ),
     renderLanguagePage(language, languageArticles),
   );
 }
@@ -77,7 +91,8 @@ const meta: NewsMeta = {
   generatedAt: collectedAt,
   articleCount: articles.length,
   languages,
-  categories: Array.from(new Set(articles.map((article) => article.category))).sort(),
+  categories: Array.from(new Set(articles.map((article) => article.category)))
+    .sort(),
   sources: sourceResults,
   inclusionRules: INCLUSION_RULES,
 };
