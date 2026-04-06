@@ -291,15 +291,6 @@ function renderHomePage(
       `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
     )
     .join("");
-  const weekSummary = options.weekLabel
-    ? `<div class="callout">
-  <p class="eyebrow">Current week</p>
-  <h2>${escapeHtml(options.weekLabel)}</h2>
-  <p>${articles.length} ${
-      articles.length === 1 ? "article" : "articles"
-    } collected for this ISO week.</p>
-</div>`
-    : "";
   const weekArchive = renderWeekArchive(options.weekArchive ?? []);
 
 return `---
@@ -311,8 +302,6 @@ url: ${escapeYaml(options.url)}
 # Programming language news from official sources
 
 Lang News tracks release announcements, language-level feature rollouts, standards updates, and roadmap posts from the primary sites for each language.
-
-${weekSummary}
 
 ${weekArchive}
 
