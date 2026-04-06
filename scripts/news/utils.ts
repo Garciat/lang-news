@@ -329,10 +329,10 @@ function renderHomePage(
   const weekPagination = renderWeekPagination(options);
 
   return `---
- title: ${escapeYaml(options.title)}
- layout: layout.vto
- url: ${options.url}
- ---
+title: ${escapeYaml(options.title)}
+layout: layout.vto
+url: ${options.url}
+---
 
 # Programming language news from official sources
 
