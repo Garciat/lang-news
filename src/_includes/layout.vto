@@ -4,19 +4,133 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }} - Lang News</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --text: #132238;
+      --muted: #55657d;
+      --border: #d6dfeb;
+      --accent: #155eef;
+      --accent-soft: #e8efff;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: var(--accent); }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 1.5rem;
+    }
+    .shell {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .brand {
+      display: flex;
+      gap: 1rem;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    nav {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    footer {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 1.5rem 3rem;
+      color: var(--muted);
+    }
+    .article-feed {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .article-card,
+    .article-shell,
+    .callout {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem;
+      box-shadow: 0 8px 24px rgba(19, 34, 56, 0.04);
+    }
+    .filters {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
+    }
+    .filters label {
+      display: grid;
+      gap: 0.35rem;
+      font-weight: 600;
+    }
+    .filters select {
+      min-width: 220px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+    .eyebrow,
+    .meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+    .article-card h2,
+    .article-shell h1 {
+      margin-bottom: 0.75rem;
+      line-height: 1.2;
+    }
+    .article-shell .body {
+      margin-top: 1.5rem;
+      white-space: pre-wrap;
+    }
+    code {
+      background: var(--accent-soft);
+      padding: 0.15rem 0.35rem;
+      border-radius: 6px;
+    }
+  </style>
 </head>
 <body>
   <header>
-    <h1>Lang News</h1>
-    <nav>
-      <a href="/">Home</a>
-    </nav>
+    <div class="shell brand">
+      <div>
+        <strong><a href="/" style="text-decoration: none; color: inherit;">Lang News</a></strong>
+        <p class="meta">Official language releases, features, specs, and announcements.</p>
+      </div>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/methodology/">Methodology</a>
+      </nav>
+    </div>
   </header>
   <main>
     {{ content }}
   </main>
   <footer>
-    <p>&copy; 2026 Lang News</p>
+    <p>Generated from official language sources selected to keep the feed high-signal.</p>
   </footer>
 </body>
 </html>
