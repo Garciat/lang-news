@@ -55,6 +55,7 @@ export function parseFeed(xml: string): RawFeedEntry[] {
       extractTag(block, "updated");
     const updatedAt = extractTag(block, "updated");
     const summaryHtml = extractTag(block, "description") || extractTag(block, "summary");
+    // RSS 2.0 feeds often publish full entry bodies inside the namespaced content:encoded field.
     const contentHtml = extractTag(block, "content:encoded") || extractTag(block, "content");
 
     if (!title || !url || !publishedAt) {
@@ -303,11 +304,11 @@ function htmlToText(html: string): string {
   }
 
   for (const breakNode of doc.querySelectorAll("br")) {
-    breakNode.replaceWith("\n");
+    breakNode.replaceWith(doc.createTextNode("\n"));
   }
 
   for (const item of doc.querySelectorAll("li")) {
-    item.prepend("- ");
+    item.prepend(doc.createTextNode("- "));
   }
 
   for (const block of doc.querySelectorAll("p, div, section, article, li, ul, ol, h1, h2, h3, h4, h5, h6, pre, blockquote")) {
