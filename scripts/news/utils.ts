@@ -1,5 +1,6 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { dirname, join } from "@std/path";
+import { parse as parseYaml, stringify as stringifyYaml } from "@std/yaml";
 import {
   type ArticleSourceConfig,
   type NewsArticle,
@@ -93,7 +94,7 @@ export function parseFeed(xml: string): RawFeedEntry[] {
     throw new Error("Feed did not contain any item or entry elements.");
   }
 
-  return Array.from(entries, (entry) => {
+  const parsedEntries: Array<RawFeedEntry | null> = Array.from(entries, (entry) => {
     const title = readFeedText(entry, ["title"]);
     const url = extractFeedUrl(entry) || readFeedText(entry, ["id", "link"]);
     const publishedAt = readFeedText(entry, ["pubdate", "published", "updated"]);
@@ -102,7 +103,7 @@ export function parseFeed(xml: string): RawFeedEntry[] {
     const contentHtml = readFeedInnerHtml(entry, ["content:encoded", "content"]);
 
     if (!title || !url || !publishedAt) {
-      throw new Error("Feed entry is missing required fields.");
+      return null;
     }
 
     return {
@@ -114,21 +115,39 @@ export function parseFeed(xml: string): RawFeedEntry[] {
       contentHtml: contentHtml ? decodeHtml(contentHtml) : undefined,
     } satisfies RawFeedEntry;
   });
+
+  const usableEntries = parsedEntries.filter((entry): entry is RawFeedEntry =>
+    entry !== null
+  );
+
+  if (!usableEntries.length) {
+    throw new Error("Feed did not contain any usable item or entry elements.");
+  }
+
+  return usableEntries;
 }
 
 export function shouldIncludeEntry(
   config: ArticleSourceConfig,
   entry: RawFeedEntry,
 ): boolean {
-  const haystack = `${entry.title}\n${
-    htmlToSummaryText(entry.summaryHtml ?? entry.contentHtml ?? "")
-  }`;
+  const title = cleanWhitespace(entry.title);
+  const summary = htmlToSummaryText(entry.summaryHtml ?? entry.contentHtml ?? "");
+  const combined = `${title}\n${summary}`;
 
-  if (config.excludePatterns?.some((pattern) => pattern.test(haystack))) {
+  if (
+    matchesAny(title, config.excludeTitlePatterns) ||
+    matchesAny(summary, config.excludeSummaryPatterns) ||
+    matchesAny(combined, config.excludePatterns)
+  ) {
     return false;
   }
 
-  return config.includePatterns.some((pattern) => pattern.test(haystack));
+  return (
+    matchesAny(title, config.includeTitlePatterns) ||
+    matchesAny(summary, config.includeSummaryPatterns) ||
+    matchesAny(combined, config.includePatterns)
+  );
 }
 
 export async function normalizeEntry(
@@ -291,56 +310,21 @@ function renderHomePage(
 ): string {
   const languages = uniqueValues(articles.map((article) => article.language))
     .sort();
-  const articleCards = articles.map(renderArticleCard).join("\n");
-  const languageOptions = languages
-    .map((language) =>
-      `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
-    )
-    .join("");
   const weekArchive = renderWeekArchive(options.weekArchive ?? []);
 
-return `---
-title: ${escapeYaml(options.title)}
-layout: layout.vto
-url: ${escapeYaml(options.url)}
----
-
-# Programming language news from official sources
-
-Lang News tracks release announcements, language-level feature rollouts, standards updates, and roadmap posts from the primary sites for each language.
-
-${weekArchive}
-
-<div class="filters">
-  <label>
-    Language
-    <select id="language-filter">
-      <option value="">All languages</option>
-      ${languageOptions}
-    </select>
-  </label>
-</div>
-
-<div class="article-feed" id="article-feed">
-${articleCards}
-</div>
-
-<script>
-  const languageFilter = document.getElementById("language-filter");
-  const cards = Array.from(document.querySelectorAll("[data-language]"));
-
-  function updateFeed() {
-    const language = languageFilter.value;
-
-    for (const card of cards) {
-      const matchesLanguage = !language || card.dataset.language === language;
-      card.hidden = !matchesLanguage;
-    }
-  }
-
-  languageFilter.addEventListener("change", updateFeed);
-</script>
-`;
+  return renderContentPage({
+    title: options.title,
+    url: options.url,
+    heading: "Programming language news from official sources",
+    intro:
+      "Lang News tracks release announcements, language-level feature rollouts, standards updates, and roadmap posts from the primary sites for each language.",
+    body: [
+      weekArchive,
+      renderLanguageFilter(languages),
+      renderArticleFeed(articles, { id: "article-feed" }),
+      renderLanguageFilterScript(),
+    ].filter(Boolean).join("\n\n"),
+  });
 }
 
 export function renderLanguagePage(
@@ -348,22 +332,14 @@ export function renderLanguagePage(
   languageSlug: string,
   articles: NewsArticle[],
 ): string {
-  const articleCards = articles.map(renderArticleCard).join("\n");
-
-return `---
-title: ${escapeYaml(language)}
-layout: layout.vto
-url: /languages/${languageSlug}/
----
-
-# ${language}
-
-Official ${language} language news collected from primary release and announcement channels.
-
-<div class="article-feed">
-${articleCards}
-</div>
-`;
+  return renderContentPage({
+    title: language,
+    url: `/languages/${languageSlug}/`,
+    heading: language,
+    intro:
+      `Official ${language} language news collected from primary release and announcement channels.`,
+    body: renderArticleFeed(articles),
+  });
 }
 
 function renderArticleCard(article: NewsArticle): string {
@@ -379,6 +355,77 @@ function renderArticleCard(article: NewsArticle): string {
     escapeHtml(article.sourceName)
   }</a></p>
 </article>`;
+}
+
+function renderContentPage(options: {
+  title: string;
+  url: string;
+  heading: string;
+  intro: string;
+  body: string;
+}): string {
+  return `${renderLayoutFrontMatter(options.title, options.url)}
+
+# ${options.heading}
+
+${options.intro}
+
+${options.body}
+`;
+}
+
+function renderLayoutFrontMatter(title: string, url: string): string {
+  return `---
+title: ${escapeYaml(title)}
+layout: layout.vto
+url: ${escapeYaml(url)}
+---`;
+}
+
+function renderArticleFeed(
+  articles: NewsArticle[],
+  options: { id?: string } = {},
+): string {
+  const idAttribute = options.id ? ` id="${escapeHtml(options.id)}"` : "";
+  return `<div class="article-feed"${idAttribute}>
+${articles.map(renderArticleCard).join("\n")}
+</div>`;
+}
+
+function renderLanguageFilter(languages: string[]): string {
+  const languageOptions = languages
+    .map((language) =>
+      `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
+    )
+    .join("");
+
+  return `<div class="filters">
+  <label>
+    Language
+    <select id="language-filter">
+      <option value="">All languages</option>
+      ${languageOptions}
+    </select>
+  </label>
+</div>`;
+}
+
+function renderLanguageFilterScript(): string {
+  return `<script>
+  const languageFilter = document.getElementById("language-filter");
+  const cards = Array.from(document.querySelectorAll("[data-language]"));
+
+  function updateFeed() {
+    const language = languageFilter.value;
+
+    for (const card of cards) {
+      const matchesLanguage = !language || card.dataset.language === language;
+      card.hidden = !matchesLanguage;
+    }
+  }
+
+  languageFilter.addEventListener("change", updateFeed);
+</script>`;
 }
 
 function renderWeekArchive(entries: WeekArchiveEntry[]): string {
@@ -602,27 +649,30 @@ function getIsoWeekParts(date: Date): { weekYear: number; weekNumber: number } {
 }
 
 function renderArticleMarkdown(article: NewsArticle): string {
+  const frontMatter = stringifyYaml({
+    title: article.title,
+    layout: "article.vto",
+    url: article.url,
+    articleId: article.id,
+    type: "article",
+    date: article.date,
+    language: article.language,
+    languageSlug: article.languageSlug,
+    sourceId: article.sourceId,
+    sourceName: article.sourceName,
+    sourceUrl: article.sourceUrl,
+    canonicalUrl: article.canonicalUrl,
+    version: article.version ?? "",
+    summary: article.summary,
+    collectedAt: article.collectedAt,
+    updatedAt: article.updatedAt,
+    sourceUpdatedAt: article.sourceUpdatedAt ?? "",
+    contentHash: article.contentHash,
+    tags: article.tags,
+  }).trimEnd();
+
   return `---
-title: ${escapeYaml(article.title)}
-layout: article.vto
-url: ${article.url}
-articleId: ${article.id}
-type: article
-date: ${article.date}
-language: ${escapeYaml(article.language)}
-languageSlug: ${escapeYaml(article.languageSlug)}
-sourceId: ${article.sourceId}
-sourceName: ${escapeYaml(article.sourceName)}
-sourceUrl: ${escapeYaml(article.sourceUrl)}
-canonicalUrl: ${escapeYaml(article.canonicalUrl)}
-version: ${article.version ? escapeYaml(article.version) : ""}
-summary: ${escapeYaml(article.summary)}
-collectedAt: ${article.collectedAt}
-updatedAt: ${article.updatedAt}
-sourceUpdatedAt: ${article.sourceUpdatedAt ?? ""}
-contentHash: ${article.contentHash}
-tags:
-${article.tags.map((tag) => `  - ${escapeYaml(tag)}`).join("\n")}
+${frontMatter}
 ---
 `;
 }
@@ -638,26 +688,26 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
 
     const [, frontMatter] = match;
     const record = parseFrontMatter(frontMatter);
-    const tags = Array.isArray(record.tags) ? record.tags : [];
+    const language = readRequiredString(record, "language");
 
     const article = {
-      id: toString(record.articleId),
-      title: toString(record.title),
-      date: toString(record.date),
-      language: toString(record.language),
-      languageSlug: optionalString(record.languageSlug) ?? slugify(toString(record.language)),
-      sourceName: toString(record.sourceName),
-      sourceUrl: toString(record.sourceUrl),
-      canonicalUrl: toString(record.canonicalUrl),
-      version: optionalString(record.version),
-      summary: toString(record.summary),
-      tags,
-      collectedAt: toString(record.collectedAt),
-      updatedAt: toString(record.updatedAt),
-      sourceUpdatedAt: optionalString(record.sourceUpdatedAt),
-      contentHash: toString(record.contentHash),
-      url: toString(record.url),
-      sourceId: toString(record.sourceId),
+      id: readRequiredString(record, "articleId"),
+      title: readRequiredString(record, "title"),
+      date: readRequiredString(record, "date"),
+      language,
+      languageSlug: readOptionalString(record, "languageSlug") ?? slugify(language),
+      sourceName: readRequiredString(record, "sourceName"),
+      sourceUrl: readRequiredString(record, "sourceUrl"),
+      canonicalUrl: readRequiredString(record, "canonicalUrl"),
+      version: readOptionalString(record, "version"),
+      summary: readRequiredString(record, "summary"),
+      tags: readStringArray(record, "tags"),
+      collectedAt: readRequiredString(record, "collectedAt"),
+      updatedAt: readRequiredString(record, "updatedAt"),
+      sourceUpdatedAt: readOptionalString(record, "sourceUpdatedAt"),
+      contentHash: readRequiredString(record, "contentHash"),
+      url: readRequiredString(record, "url"),
+      sourceId: readRequiredString(record, "sourceId"),
     };
 
     return article;
@@ -671,57 +721,75 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
 
 function parseFrontMatter(
   frontMatter: string,
-): Record<string, string | string[]> {
-  const record: Record<string, string | string[]> = {};
-  let currentKey = "";
+): Record<string, unknown> {
+  const record = parseYaml(frontMatter);
 
-  for (const rawLine of frontMatter.split("\n")) {
-    const line = rawLine.trimEnd();
-    if (!line) {
-      continue;
-    }
-
-    if (line.startsWith("  - ") && currentKey) {
-      const values = Array.isArray(record[currentKey])
-        ? record[currentKey] as string[]
-        : [];
-      values.push(unquote(line.slice(4)));
-      record[currentKey] = values;
-      continue;
-    }
-
-    const separatorIndex = line.indexOf(":");
-    if (separatorIndex === -1) {
-      continue;
-    }
-
-    currentKey = line.slice(0, separatorIndex).trim();
-    const value = line.slice(separatorIndex + 1).trim();
-    record[currentKey] = value ? unquote(value) : "";
+  if (!isRecord(record)) {
+    throw new Error("Article front matter must be a YAML object.");
   }
 
   return record;
 }
 
-function unquote(value: string): string {
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'");
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readRequiredString(record: Record<string, unknown>, key: string): string {
+  const value = scalarToString(record[key]);
+
+  if (value === undefined) {
+    throw new Error(`Article front matter field "${key}" must be a string.`);
   }
+
   return value;
 }
 
-function toString(value: string | string[] | undefined): string {
-  return typeof value === "string" ? value : "";
+function readOptionalString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = scalarToString(record[key]);
+
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  return value;
 }
 
-function optionalString(
-  value: string | string[] | undefined,
-): string | undefined {
-  const text = toString(value);
-  return text || undefined;
+function readStringArray(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key];
+
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+    throw new Error(`Article front matter field "${key}" must be a string array.`);
+  }
+
+  return value;
+}
+
+function scalarToString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return undefined;
+}
+
+function matchesAny(text: string, patterns?: readonly RegExp[]): boolean {
+  if (!patterns?.length) {
+    return false;
+  }
+
+  return patterns.some((pattern) => pattern.test(text));
 }
 
 function escapeYaml(value: string): string {

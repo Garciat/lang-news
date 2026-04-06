@@ -9,11 +9,11 @@ const config = {
   sourceUrl: "https://elixir-lang.org/blog/",
   feedUrl: "https://elixir-lang.org/atom.xml",
   tags: ["elixir", "elixir-lang"],
-  includePatterns: [
+  includeTitlePatterns: [
     /elixir\s+v?\d+(?:\.\d+)?/i,
     /release|released|release candidate|type inference|type checker|type system|set-theoretic|gradual typing|language server|interoperability|compiler|json/i,
   ],
-  excludePatterns: [
+  excludeTitlePatterns: [
     /case stud|welcome to our series|meetup|outreach|speaker|trainer/i,
   ],
 } as const;

@@ -9,11 +9,11 @@ const config = {
   sourceUrl: "https://www.scala-lang.org/blog/",
   feedUrl: "https://www.scala-lang.org/feed/index.xml",
   tags: ["scala", "scala-lang"],
-  includePatterns: [
+  includeTitlePatterns: [
     /scala\s+\d+(?:\.\d+)?/i,
     /release|released|security|compiler|language|type|platform|roadmap/i,
   ],
-  excludePatterns: [
+  excludeTitlePatterns: [
     /scala days|advent of code|recap|meetup|conference/i,
   ],
 } as const;

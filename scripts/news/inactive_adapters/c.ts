@@ -2,6 +2,9 @@ import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts
 import type { RawFeedEntry, SourceAdapter } from "../types.ts";
 import { runHtmlAdapter } from "../source_adapter.ts";
 
+// Retained for possible future use, but kept out of the active adapter set
+// because WG14 document-log coverage is too noisy for the current product bar.
+
 const WG14_ENTRY_PATTERN =
   /<a href=([^>\s]+)>([^<]+)<\/a>\s+(\d{4}\/\d{2}\/\d{2})\s+([\s\S]*?)<br>/gi;
 const MAX_ENTRIES = 25;

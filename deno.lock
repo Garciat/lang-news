@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.1.2": "1.1.4",
+    "jsr:@std/yaml@^1.0.5": "1.0.10",
     "npm:@types/nunjucks@3.2.6": "3.2.6",
     "npm:@types/react-dom@18.2.7": "18.2.7",
     "npm:@types/react@18.2.33": "18.2.33",
@@ -20,6 +21,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/yaml@1.0.10": {
+      "integrity": "245706ea3511cc50c8c6d00339c23ea2ffa27bd2c7ea5445338f8feff31fa58e"
     }
   },
   "npm": {
@@ -572,7 +576,8 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/path@^1.1.2"
+      "jsr:@std/path@^1.1.2",
+      "jsr:@std/yaml@^1.0.5"
     ]
   }
 }
