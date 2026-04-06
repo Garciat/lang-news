@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }} - Lang News</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --text: #132238;
+      --muted: #55657d;
+      --border: #d6dfeb;
+      --accent: #155eef;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      line-height: 1.7;
+    }
+    a { color: var(--accent); }
+    header, main {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    .article-shell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      box-shadow: 0 8px 24px rgba(19, 34, 56, 0.04);
+    }
+    .meta {
+      color: var(--muted);
+      margin: 0.25rem 0;
+    }
+    .summary {
+      margin-top: 1.5rem;
+      font-size: 1.05rem;
+    }
+    .actions {
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← Back to Lang News</a>
+  </header>
+  <main>
+    <article class="article-shell">
+      <p class="meta">{{ language }} · {{ date }}</p>
+      <h1>{{ title }}</h1>
+      <p class="meta">Source: <a href="{{ canonicalUrl }}">{{ sourceName }}</a></p>
+      {{ if updatedAt && new Date(updatedAt).getTime() !== new Date(collectedAt).getTime() }}<p class="meta">Updated in Lang News: {{ updatedAt }}</p>{{ /if }}
+      <div class="summary">
+        <p>{{ summary }}</p>
+      </div>
+      <p class="actions"><a href="{{ canonicalUrl }}">Read the full article at the source →</a></p>
+    </article>
+  </main>
+</body>
+</html>
