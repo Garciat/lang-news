@@ -449,14 +449,14 @@ function renderWeekArchiveEntry(entry: WeekArchiveEntry): string {
     )
     .join("");
 
-  return `    <section class="week-archive-item${
+  return `    <a class="week-archive-item${
     entry.isCurrent ? " is-current" : ""
-  }">
-      <h2 class="week-archive-title"><a href="${escapeHtml(entry.url)}"${
+  }" href="${escapeHtml(entry.url)}"${
     entry.isCurrent ? ' aria-current="page"' : ""
-  }>${escapeHtml(entry.label)}</a></h2>
+  }>
+      <h2 class="week-archive-title">${escapeHtml(entry.label)}</h2>
       <div class="week-chip-list">${chips}</div>
-    </section>`;
+    </a>`;
 }
 
 function buildWeekArchive(
@@ -486,7 +486,7 @@ function countArticlesByLanguage(articles: NewsArticle[]): WeekLanguageCount[] {
 
   return Array.from(counts.entries())
     .map(([language, count]) => ({ language, count }))
-    .sort((a, b) => b.count - a.count || a.language.localeCompare(b.language));
+    .sort((a, b) => a.language.localeCompare(b.language));
 }
 
 function htmlToText(html: string): string {
