@@ -25,8 +25,6 @@ republishing full article bodies.
 - Rust Blog (`https://blog.rust-lang.org/`)
 - Python Insider (`https://blog.python.org/`)
 - Inside Java (`https://inside.java/`)
-- WG14 Document Log (`https://open-std.org/JTC1/SC22/WG14/www/wg14_document_log.htm`)
-- WG21 News (`https://www.open-std.org/jtc1/sc22/wg21/`)
 - The D Blog (`https://dlang.org/blog/`)
 - Haskell Blog (`https://blog.haskell.org/`)
 - Kotlin Blog (`https://blog.jetbrains.com/kotlin/`)

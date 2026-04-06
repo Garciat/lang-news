@@ -1,5 +1,3 @@
-import { cAdapter } from "./adapters/c.ts";
-import { cppAdapter } from "./adapters/cpp.ts";
 import { csharpAdapter } from "./adapters/csharp.ts";
 import { dAdapter } from "./adapters/d.ts";
 import { haskellAdapter } from "./adapters/haskell.ts";
@@ -32,8 +30,6 @@ const adapters: SourceAdapter[] = [
   rustAdapter,
   pythonAdapter,
   javaAdapter,
-  cAdapter,
-  cppAdapter,
   dAdapter,
   haskellAdapter,
   kotlinAdapter,
@@ -50,6 +46,7 @@ const collectedAt = new Date().toISOString();
 const sourceResults: SourceRunResult[] = [];
 
 await ensureDir(articlesRoot);
+await pruneInactiveSourceDirectories(articlesRoot, adapters);
 
 for (const adapter of adapters) {
   try {
@@ -115,3 +112,18 @@ const meta: NewsMeta = {
 };
 
 await writeJson(newsMetaPath, meta);
+
+async function pruneInactiveSourceDirectories(
+  rootDir: string,
+  activeAdapters: SourceAdapter[],
+): Promise<void> {
+  const activeSourceIds = new Set(activeAdapters.map((adapter) => adapter.config.id));
+
+  for await (const entry of Deno.readDir(rootDir)) {
+    if (!entry.isDirectory || activeSourceIds.has(entry.name)) {
+      continue;
+    }
+
+    await Deno.remove(join(rootDir, entry.name), { recursive: true });
+  }
+}
