@@ -16,7 +16,7 @@ const CATEGORY_PATTERNS: Record<ArticleCategory, RegExp[]> = {
   announcement: [/announc|update|status|blog/i],
 };
 
-const VERSION_PATTERN = /\b(?:v)?(\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9.]+)?)\b/;
+const VERSION_PATTERN = /\b(?:v)?(\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)?)\b/;
 const FRONT_MATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 export const INCLUSION_RULES = [
@@ -480,7 +480,7 @@ function parseFrontMatter(frontMatter: string): Record<string, string | string[]
 
 function unquote(value: string): string {
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1).replace(/\\"/g, '"');
+    return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
   return value;
 }
@@ -508,12 +508,23 @@ function escapeHtml(value: string): string {
 
 function decodeHtml(value: string): string {
   return value
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&apos;", "'")
-    .replaceAll("&#39;", "'")
+    .replace(/&(amp|lt|gt|quot|apos);/g, (_, entity) => {
+      switch (entity) {
+        case "amp":
+          return "&";
+        case "lt":
+          return "<";
+        case "gt":
+          return ">";
+        case "quot":
+          return '"';
+        case "apos":
+          return "'";
+        default:
+          return _;
+      }
+    })
+    .replace(/&#39;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
     .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
 }
