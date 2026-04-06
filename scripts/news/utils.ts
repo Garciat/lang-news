@@ -186,10 +186,7 @@ export async function writeArticleFile(
   article: NewsArticle,
 ): Promise<void> {
   await ensureDir(directory);
-  const filePath = join(
-    directory,
-    `${article.date.slice(0, 10)}-${article.id}.md`,
-  );
+  const filePath = join(directory, articleFileName(article));
   const existing = await readArticleFile(filePath);
   const updatedAt = existing && existing.contentHash === article.contentHash
     ? existing.updatedAt
@@ -197,6 +194,10 @@ export async function writeArticleFile(
   const nextArticle = { ...article, updatedAt };
 
   await Deno.writeTextFile(filePath, renderArticleMarkdown(nextArticle));
+}
+
+export function articleFileName(article: NewsArticle): string {
+  return `${article.date.slice(0, 10)}-${article.id}.md`;
 }
 
 export async function loadArticleSummaries(

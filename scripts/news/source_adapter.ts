@@ -5,7 +5,16 @@ import type {
   RawFeedEntry,
   ScraperContext,
 } from "./types.ts";
-import { fetchText, normalizeEntry, parseFeed, shouldIncludeEntry, uniqueByCanonicalUrl, writeArticleFile } from "./utils.ts";
+import {
+  articleFileName,
+  ensureDir,
+  fetchText,
+  normalizeEntry,
+  parseFeed,
+  shouldIncludeEntry,
+  uniqueByCanonicalUrl,
+  writeArticleFile,
+} from "./utils.ts";
 
 export async function runFeedAdapter(
   config: ArticleSourceConfig,
@@ -35,9 +44,26 @@ async function runEntriesAdapter(
   ));
 
   const outputDir = join(context.outputDir, config.id);
+  await ensureDir(outputDir);
   for (const article of articles) {
     await writeArticleFile(outputDir, article);
   }
+  await pruneRemovedArticles(outputDir, articles);
 
   return articles;
+}
+
+async function pruneRemovedArticles(
+  outputDir: string,
+  articles: NewsArticle[],
+): Promise<void> {
+  const nextFiles = new Set(articles.map(articleFileName));
+
+  for await (const entry of Deno.readDir(outputDir)) {
+    if (!entry.isFile || !entry.name.endsWith(".md") || nextFiles.has(entry.name)) {
+      continue;
+    }
+
+    await Deno.remove(join(outputDir, entry.name));
+  }
 }

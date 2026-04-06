@@ -14,7 +14,11 @@ const config = {
   sourceUrl: "https://open-std.org/JTC1/SC22/WG14/www/",
   feedUrl: "https://open-std.org/JTC1/SC22/WG14/www/wg14_document_log.htm",
   tags: ["c", "wg14"],
-  includePatterns: [/./],
+  includePatterns: [
+    /working draft|editor'?s report|issue log/i,
+    /minutes|agenda|schedule|meeting information|meeting info/i,
+    /committee draft|technical specification/i,
+  ],
 } as const;
 
 export const cAdapter: SourceAdapter = {
