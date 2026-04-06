@@ -26,8 +26,11 @@ republishing full article bodies.
 - Python Insider (`https://blog.python.org/`)
 - Inside Java (`https://inside.java/`)
 - The D Blog (`https://dlang.org/blog/`)
+- The Go Blog (`https://go.dev/blog/`)
 - Haskell Blog (`https://blog.haskell.org/`)
 - Kotlin Blog (`https://blog.jetbrains.com/kotlin/`)
+- Ruby News (`https://www.ruby-lang.org/en/news/`)
+- Swift.org Blog (`https://www.swift.org/blog/`)
 - TypeScript Blog (`https://devblogs.microsoft.com/typescript/`)
 - .NET Blog C# tag (`https://devblogs.microsoft.com/dotnet/tag/csharp/`)
 

@@ -22,8 +22,11 @@ coverage.
 - Python Insider
 - Inside Java
 - The D Blog
+- The Go Blog
 - Haskell Blog
 - Kotlin Blog
+- Ruby News
+- Swift.org Blog
 - TypeScript Blog
 - .NET Blog (C#)
 

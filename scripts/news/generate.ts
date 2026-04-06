@@ -1,11 +1,14 @@
 import { csharpAdapter } from "./adapters/csharp.ts";
 import { dAdapter } from "./adapters/d.ts";
+import { goAdapter } from "./adapters/go.ts";
 import { haskellAdapter } from "./adapters/haskell.ts";
 import { javaAdapter } from "./adapters/java.ts";
 import { join } from "@std/path";
 import { kotlinAdapter } from "./adapters/kotlin.ts";
 import { pythonAdapter } from "./adapters/python.ts";
 import { rustAdapter } from "./adapters/rust.ts";
+import { rubyAdapter } from "./adapters/ruby.ts";
+import { swiftAdapter } from "./adapters/swift.ts";
 import { typescriptAdapter } from "./adapters/typescript.ts";
 import {
   NEWS_ARTICLES_DIR,
@@ -31,8 +34,11 @@ const adapters: SourceAdapter[] = [
   pythonAdapter,
   javaAdapter,
   dAdapter,
+  goAdapter,
   haskellAdapter,
   kotlinAdapter,
+  rubyAdapter,
+  swiftAdapter,
   typescriptAdapter,
   csharpAdapter,
 ];
