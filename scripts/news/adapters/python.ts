@@ -4,6 +4,7 @@ import { runFeedAdapter } from "../source_adapter.ts";
 const config = {
   id: "python-insider",
   language: "Python",
+  languageSlug: "python",
   sourceName: "Python Insider",
   sourceUrl: "https://blog.python.org/",
   feedUrl: "https://blog.python.org/rss.xml",

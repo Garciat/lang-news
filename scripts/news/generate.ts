@@ -1,6 +1,14 @@
+import { cAdapter } from "./adapters/c.ts";
+import { cppAdapter } from "./adapters/cpp.ts";
+import { csharpAdapter } from "./adapters/csharp.ts";
+import { dAdapter } from "./adapters/d.ts";
+import { haskellAdapter } from "./adapters/haskell.ts";
+import { javaAdapter } from "./adapters/java.ts";
 import { join } from "@std/path";
+import { kotlinAdapter } from "./adapters/kotlin.ts";
 import { pythonAdapter } from "./adapters/python.ts";
 import { rustAdapter } from "./adapters/rust.ts";
+import { typescriptAdapter } from "./adapters/typescript.ts";
 import {
   NEWS_ARTICLES_DIR,
   NEWS_DATA_PATH,
@@ -20,7 +28,18 @@ import {
   writeJson,
 } from "./utils.ts";
 
-const adapters: SourceAdapter[] = [rustAdapter, pythonAdapter];
+const adapters: SourceAdapter[] = [
+  rustAdapter,
+  pythonAdapter,
+  javaAdapter,
+  cAdapter,
+  cppAdapter,
+  dAdapter,
+  haskellAdapter,
+  kotlinAdapter,
+  typescriptAdapter,
+  csharpAdapter,
+];
 const repoRoot = Deno.cwd();
 const articlesRoot = join(repoRoot, NEWS_ARTICLES_DIR);
 const siteRoot = join(repoRoot, NEWS_SITE_DIR);
@@ -79,9 +98,9 @@ for (const language of languages) {
   await Deno.writeTextFile(
     join(
       languagesDir,
-      `${language.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.md`,
+      `${languageArticles[0].languageSlug}.md`,
     ),
-    renderLanguagePage(language, languageArticles),
+    renderLanguagePage(language, languageArticles[0].languageSlug, languageArticles),
   );
 }
 
@@ -91,8 +110,6 @@ const meta: NewsMeta = {
   generatedAt: collectedAt,
   articleCount: articles.length,
   languages,
-  categories: Array.from(new Set(articles.map((article) => article.category)))
-    .sort(),
   sources: sourceResults,
   inclusionRules: INCLUSION_RULES,
 };

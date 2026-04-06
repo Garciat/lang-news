@@ -1,23 +1,10 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { dirname, join } from "@std/path";
 import {
-  ARTICLE_CATEGORIES,
-  type ArticleCategory,
   type ArticleSourceConfig,
   type NewsArticle,
   type RawFeedEntry,
 } from "./types.ts";
-
-const CATEGORY_PATTERNS: Record<ArticleCategory, RegExp[]> = {
-  release: [
-    /(\b|v)\d+\.\d+(?:\.\d+)?\b/i,
-    /release|released|stable|beta|alpha|rc/i,
-  ],
-  feature: [/feature|stabiliz|language support|improvement|new in|syntax/i],
-  spec: [/spec|pep|rfc|proposal|edition|standard|roadmap/i],
-  tooling: [/cargo|pip|build tool|package manager|tooling|compiler/i],
-  announcement: [/announc|update|status|blog/i],
-};
 
 const VERSION_PATTERN =
   /\b(?:v)?(\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)?)\b/;
@@ -133,14 +120,12 @@ export async function normalizeEntry(
     entry.summaryHtml ?? entry.contentHtml ?? "",
   );
   const summary = truncate(summarySource || cleanWhitespace(entry.title), 280);
-  const category = inferCategory(entry.title, summary);
   const version = detectVersion(entry.title) ?? detectVersion(summary);
-  const id = `${slugify(config.language)}-${await shortHash(canonicalUrl)}`;
+  const id = `${config.languageSlug}-${await shortHash(canonicalUrl)}`;
   const date = normalizeDate(entry.publishedAt);
   const url = `/articles/${config.id}/${date.slice(0, 10)}-${id}/`;
   const tags = uniqueValues([
-    slugify(config.language),
-    category,
+    config.languageSlug,
     "official",
     ...config.tags,
   ]);
@@ -151,10 +136,10 @@ export async function normalizeEntry(
     title: cleanWhitespace(entry.title),
     date,
     language: config.language,
+    languageSlug: config.languageSlug,
     sourceName: config.sourceName,
     sourceUrl: config.sourceUrl,
     canonicalUrl,
-    category,
     version,
     summary,
     tags,
@@ -302,19 +287,10 @@ function renderHomePage(
 ): string {
   const languages = uniqueValues(articles.map((article) => article.language))
     .sort();
-  const categories = uniqueValues(articles.map((article) => article.category))
-    .sort();
   const articleCards = articles.map(renderArticleCard).join("\n");
   const languageOptions = languages
     .map((language) =>
       `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
-    )
-    .join("");
-  const categoryOptions = categories
-    .map((category) =>
-      `<option value="${escapeHtml(category)}">${
-        escapeHtml(toTitleCase(category))
-      }</option>`
     )
     .join("");
   const weekSummary = options.weekLabel
@@ -350,13 +326,6 @@ ${weekPagination}
       ${languageOptions}
     </select>
   </label>
-  <label>
-    Category
-    <select id="category-filter">
-      <option value="">All categories</option>
-      ${categoryOptions}
-    </select>
-  </label>
 </div>
 
 <div class="article-feed" id="article-feed">
@@ -367,36 +336,33 @@ ${weekPagination}
 
 <script>
   const languageFilter = document.getElementById("language-filter");
-  const categoryFilter = document.getElementById("category-filter");
-  const cards = Array.from(document.querySelectorAll("[data-language][data-category]"));
+  const cards = Array.from(document.querySelectorAll("[data-language]"));
 
   function updateFeed() {
     const language = languageFilter.value;
-    const category = categoryFilter.value;
 
     for (const card of cards) {
       const matchesLanguage = !language || card.dataset.language === language;
-      const matchesCategory = !category || card.dataset.category === category;
-      card.hidden = !(matchesLanguage && matchesCategory);
+      card.hidden = !matchesLanguage;
     }
   }
 
   languageFilter.addEventListener("change", updateFeed);
-  categoryFilter.addEventListener("change", updateFeed);
 </script>
 `;
 }
 
 export function renderLanguagePage(
   language: string,
+  languageSlug: string,
   articles: NewsArticle[],
 ): string {
   const articleCards = articles.map(renderArticleCard).join("\n");
 
-  return `---
+return `---
 title: ${escapeYaml(language)}
 layout: layout.vto
-url: /languages/${slugify(language)}/
+url: /languages/${languageSlug}/
 ---
 
 # ${language}
@@ -412,10 +378,10 @@ ${articleCards}
 function renderArticleCard(article: NewsArticle): string {
   return `<article class="article-card" data-language="${
     escapeHtml(article.language)
-  }" data-category="${escapeHtml(article.category)}">
+  }">
   <p class="eyebrow">${escapeHtml(article.language)} · ${
-    escapeHtml(toTitleCase(article.category))
-  } · ${escapeHtml(formatDate(article.date))}</p>
+    escapeHtml(formatDate(article.date))
+  }</p>
   <h2><a href="${escapeHtml(article.url)}">${escapeHtml(article.title)}</a></h2>
   <p>${escapeHtml(article.summary)}</p>
   <p class="meta">Source: <a href="${escapeHtml(article.canonicalUrl)}">${
@@ -488,18 +454,6 @@ function normalizeUrl(url: string): string {
   return url.trim().replace(/#.*$/, "");
 }
 
-function inferCategory(title: string, content: string): ArticleCategory {
-  const haystack = `${title}\n${content}`;
-
-  for (const category of ARTICLE_CATEGORIES) {
-    if (CATEGORY_PATTERNS[category].some((pattern) => pattern.test(haystack))) {
-      return category;
-    }
-  }
-
-  return "announcement";
-}
-
 function detectVersion(text: string): string | undefined {
   return text.match(VERSION_PATTERN)?.[1];
 }
@@ -528,6 +482,8 @@ function cleanWhitespace(text: string): string {
 
 function cleanSummaryText(text: string): string {
   return cleanWhitespace(text)
+    .replace(/\]\]>/g, "")
+    .replace(/\s*The post .*? appeared first on .*?\.?$/i, "")
     .replace(/^["'“”‘’]+\s*/, "")
     .replace(/\s*["'“”‘’]+$/, "");
 }
@@ -628,11 +584,11 @@ articleId: ${article.id}
 type: article
 date: ${article.date}
 language: ${escapeYaml(article.language)}
+languageSlug: ${escapeYaml(article.languageSlug)}
 sourceId: ${article.sourceId}
 sourceName: ${escapeYaml(article.sourceName)}
 sourceUrl: ${escapeYaml(article.sourceUrl)}
 canonicalUrl: ${escapeYaml(article.canonicalUrl)}
-category: ${article.category}
 version: ${article.version ? escapeYaml(article.version) : ""}
 summary: ${escapeYaml(article.summary)}
 collectedAt: ${article.collectedAt}
@@ -663,10 +619,10 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       title: toString(record.title),
       date: toString(record.date),
       language: toString(record.language),
+      languageSlug: optionalString(record.languageSlug) ?? slugify(toString(record.language)),
       sourceName: toString(record.sourceName),
       sourceUrl: toString(record.sourceUrl),
       canonicalUrl: toString(record.canonicalUrl),
-      category: toString(record.category) as ArticleCategory,
       version: optionalString(record.version),
       summary: toString(record.summary),
       tags,

@@ -3,19 +3,10 @@ export const NEWS_SITE_DIR = "src/generated/site";
 export const NEWS_DATA_PATH = "src/generated/news.json";
 export const NEWS_META_PATH = "src/_data/news_meta.json";
 
-export const ARTICLE_CATEGORIES = [
-  "release",
-  "feature",
-  "spec",
-  "tooling",
-  "announcement",
-] as const;
-
-export type ArticleCategory = typeof ARTICLE_CATEGORIES[number];
-
 export interface ArticleSourceConfig {
   id: string;
   language: string;
+  languageSlug: string;
   sourceName: string;
   sourceUrl: string;
   feedUrl: string;
@@ -38,10 +29,10 @@ export interface NewsArticle {
   title: string;
   date: string;
   language: string;
+  languageSlug: string;
   sourceName: string;
   sourceUrl: string;
   canonicalUrl: string;
-  category: ArticleCategory;
   version?: string;
   summary: string;
   tags: string[];
@@ -75,7 +66,6 @@ export interface NewsMeta {
   generatedAt: string;
   articleCount: number;
   languages: string[];
-  categories: ArticleCategory[];
   sources: SourceRunResult[];
   inclusionRules: string[];
 }

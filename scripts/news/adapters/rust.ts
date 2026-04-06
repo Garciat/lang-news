@@ -4,6 +4,7 @@ import { runFeedAdapter } from "../source_adapter.ts";
 const config = {
   id: "rust-blog",
   language: "Rust",
+  languageSlug: "rust",
   sourceName: "Rust Blog",
   sourceUrl: "https://blog.rust-lang.org/",
   feedUrl: "https://blog.rust-lang.org/feed.xml",

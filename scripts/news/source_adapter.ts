@@ -1,5 +1,10 @@
 import { join } from "@std/path";
-import type { ArticleSourceConfig, NewsArticle, ScraperContext } from "./types.ts";
+import type {
+  ArticleSourceConfig,
+  NewsArticle,
+  RawFeedEntry,
+  ScraperContext,
+} from "./types.ts";
 import { fetchText, normalizeEntry, parseFeed, shouldIncludeEntry, uniqueByCanonicalUrl, writeArticleFile } from "./utils.ts";
 
 export async function runFeedAdapter(
@@ -7,11 +12,26 @@ export async function runFeedAdapter(
   context: ScraperContext,
 ): Promise<NewsArticle[]> {
   const xml = await fetchText(config.feedUrl);
-  const entries = parseFeed(xml)
-    .filter((entry) => shouldIncludeEntry(config, entry));
+  return await runEntriesAdapter(config, context, parseFeed(xml));
+}
 
+export async function runHtmlAdapter(
+  config: ArticleSourceConfig,
+  context: ScraperContext,
+  extractEntries: (html: string) => RawFeedEntry[],
+): Promise<NewsArticle[]> {
+  const html = await fetchText(config.feedUrl);
+  return await runEntriesAdapter(config, context, extractEntries(html));
+}
+
+async function runEntriesAdapter(
+  config: ArticleSourceConfig,
+  context: ScraperContext,
+  entries: RawFeedEntry[],
+): Promise<NewsArticle[]> {
+  const filteredEntries = entries.filter((entry) => shouldIncludeEntry(config, entry));
   const articles = uniqueByCanonicalUrl(await Promise.all(
-    entries.map((entry) => normalizeEntry(config, entry, context.collectedAt)),
+    filteredEntries.map((entry) => normalizeEntry(config, entry, context.collectedAt)),
   ));
 
   const outputDir = join(context.outputDir, config.id);

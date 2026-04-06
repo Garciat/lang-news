@@ -20,6 +20,14 @@ coverage.
 
 - Rust Blog
 - Python Insider
+- Inside Java
+- WG14 Document Log
+- WG21 News
+- The D Blog
+- Haskell Blog
+- Kotlin Blog
+- TypeScript Blog
+- .NET Blog (C#)
 
 ## Prerequisites
 
