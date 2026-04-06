@@ -55,7 +55,7 @@
       <h1>{{ title }}</h1>
       <p class="meta">Source: <a href="{{ canonicalUrl }}">{{ sourceName }}</a></p>
       {{ if version }}<p class="meta">Version: {{ version }}</p>{{ /if }}
-      {{ if updatedAt && updatedAt !== collectedAt }}<p class="meta">Updated in Lang News: {{ updatedAt }}</p>{{ /if }}
+      {{ if updatedAt && new Date(updatedAt).getTime() !== new Date(collectedAt).getTime() }}<p class="meta">Updated in Lang News: {{ updatedAt }}</p>{{ /if }}
       <div class="body">{{ content }}</div>
     </article>
   </main>

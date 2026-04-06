@@ -35,7 +35,7 @@ jobs:
           path: |
             ~/.cache/deno
             ~/.deno
-          key: ${{ runner.os }}-deno-${{ hashFiles('deno.json', '_config.ts', 'scripts/news/**/*.ts') }}
+          key: ${{ runner.os }}-deno-${{ hashFiles('deno.json', '_config.ts', 'scripts/news/**') }}
           restore-keys: |
             ${{ runner.os }}-deno-
 

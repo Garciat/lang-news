@@ -198,8 +198,12 @@ export function renderHomePage(articles: NewsArticle[]): string {
   const languages = uniqueValues(articles.map((article) => article.language)).sort();
   const categories = uniqueValues(articles.map((article) => article.category)).sort();
   const articleCards = articles.map(renderArticleCard).join("\n");
-  const languageOptions = languages.map((language) => `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`).join("");
-  const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(toTitleCase(category))}</option>`).join("");
+  const languageOptions = languages
+    .map((language) => `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`)
+    .join("");
+  const categoryOptions = categories
+    .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(toTitleCase(category))}</option>`)
+    .join("");
 
   return `---
 title: Lang News
@@ -370,7 +374,10 @@ function slugify(value: string): string {
 async function shortHash(value: string): Promise<string> {
   const bytes = new TextEncoder().encode(value);
   const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 12);
+  const hex = Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return hex.slice(0, 12);
 }
 
 function uniqueValues(values: string[]): string[] {
