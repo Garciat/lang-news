@@ -1,3 +1,4 @@
+import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.56/deno-dom-wasm.ts";
 import { dirname, join } from "@std/path";
 import {
   ARTICLE_CATEGORIES,
@@ -44,40 +45,31 @@ export async function fetchText(url: string): Promise<string> {
 }
 
 export function parseFeed(xml: string): RawFeedEntry[] {
-  const doc = new DOMParser().parseFromString(xml, "application/xml");
+  const itemBlocks = matchBlocks(xml, "item");
+  const entryBlocks = itemBlocks.length > 0 ? itemBlocks : matchBlocks(xml, "entry");
 
-  if (!doc) {
-    throw new Error("Unable to parse source feed XML.");
-  }
+  return entryBlocks.map((block) => {
+    const title = extractTag(block, "title");
+    const url = extractLink(block) || extractTag(block, "link") || extractTag(block, "id");
+    const publishedAt = extractTag(block, "pubDate") || extractTag(block, "published") ||
+      extractTag(block, "updated");
+    const updatedAt = extractTag(block, "updated");
+    const summaryHtml = extractTag(block, "description") || extractTag(block, "summary");
+    const contentHtml = extractTag(block, "content:encoded") || extractTag(block, "content");
 
-  const entries = [
-    ...Array.from(doc.getElementsByTagName("item")),
-    ...Array.from(doc.getElementsByTagName("entry")),
-  ];
+    if (!title || !url || !publishedAt) {
+      throw new Error("Feed entry is missing required fields.");
+    }
 
-  return entries
-    .map((entry) => {
-      const title = firstText(entry, ["title"]);
-      const url = readLink(entry);
-      const publishedAt = firstText(entry, ["pubDate", "published", "updated"]);
-      const updatedAt = firstText(entry, ["updated"]);
-      const summaryHtml = firstText(entry, ["description", "summary"]);
-      const contentHtml = firstText(entry, ["content:encoded", "content"]);
-
-      if (!title || !url || !publishedAt) {
-        return null;
-      }
-
-      return {
-        title,
-        url,
-        publishedAt,
-        updatedAt: updatedAt || undefined,
-        summaryHtml: summaryHtml || undefined,
-        contentHtml: contentHtml || undefined,
-      } satisfies RawFeedEntry;
-    })
-    .filter((entry): entry is RawFeedEntry => entry !== null);
+    return {
+      title: decodeHtml(title),
+      url: decodeHtml(url),
+      publishedAt: decodeHtml(publishedAt),
+      updatedAt: updatedAt ? decodeHtml(updatedAt) : undefined,
+      summaryHtml: summaryHtml ? decodeHtml(summaryHtml) : undefined,
+      contentHtml: contentHtml ? decodeHtml(contentHtml) : undefined,
+    } satisfies RawFeedEntry;
+  });
 }
 
 export function shouldIncludeEntry(config: ArticleSourceConfig, entry: RawFeedEntry): boolean {
@@ -290,39 +282,35 @@ function renderArticleCard(article: NewsArticle): string {
 </article>`;
 }
 
-function readLink(entry: Element): string {
-  for (const link of Array.from(entry.getElementsByTagName("link"))) {
-    const href = link.getAttribute("href");
-    const rel = link.getAttribute("rel");
-
-    if (href && (!rel || rel === "alternate")) {
-      return href.trim();
-    }
-  }
-
-  return firstText(entry, ["link"]);
-}
-
-function firstText(parent: Element, tagNames: string[]): string {
-  for (const tagName of tagNames) {
-    const element = parent.getElementsByTagName(tagName)[0];
-    const text = element?.textContent?.trim();
-    if (text) {
-      return text;
-    }
-  }
-
-  return "";
-}
-
 function htmlToText(html: string): string {
   if (!html.trim()) {
     return "";
   }
 
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const text = doc?.body?.textContent ?? html;
-  return cleanWhitespace(decodeHtml(text));
+  const decoded = decodeHtml(html);
+  const doc = new DOMParser().parseFromString(decoded, "text/html");
+
+  if (!doc?.body) {
+    return normalizeText(decoded.replace(/<[^>]+>/g, " "));
+  }
+
+  for (const element of doc.querySelectorAll("script, style")) {
+    element.remove();
+  }
+
+  for (const breakNode of doc.querySelectorAll("br")) {
+    breakNode.replaceWith("\n");
+  }
+
+  for (const item of doc.querySelectorAll("li")) {
+    item.prepend("- ");
+  }
+
+  for (const block of doc.querySelectorAll("p, div, section, article, li, ul, ol, h1, h2, h3, h4, h5, h6, pre, blockquote")) {
+    block.append("\n");
+  }
+
+  return normalizeText(doc.body.textContent ?? decoded);
 }
 
 function stripHtml(html: string): string {
@@ -524,7 +512,10 @@ function decodeHtml(value: string): string {
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'");
+    .replaceAll("&apos;", "'")
+    .replaceAll("&#39;", "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
 }
 
 function toTitleCase(value: string): string {
@@ -537,4 +528,32 @@ function formatDate(value: string): string {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
+}
+
+function matchBlocks(xml: string, tagName: string): string[] {
+  return Array.from(xml.matchAll(new RegExp(`<${tagName}\\b[\\s\\S]*?<\\/${tagName}>`, "gi")), (match) => match[0]);
+}
+
+function extractTag(block: string, tagName: string): string {
+  const escapedTagName = tagName.replace(":", "\\:");
+  const match = block.match(new RegExp(`<${escapedTagName}\\b[^>]*>([\\s\\S]*?)<\\/${escapedTagName}>`, "i"));
+  return match?.[1]?.trim() ?? "";
+}
+
+function extractLink(block: string): string {
+  const alternateMatch = block.match(/<link\b[^>]*href="([^"]+)"[^>]*rel="alternate"[^>]*\/?>/i);
+  if (alternateMatch?.[1]) {
+    return alternateMatch[1].trim();
+  }
+
+  const fallbackMatch = block.match(/<link\b[^>]*href="([^"]+)"[^>]*\/?>/i);
+  return fallbackMatch?.[1]?.trim() ?? "";
+}
+
+function normalizeText(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n\n");
 }

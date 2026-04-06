@@ -1,20 +1,20 @@
 import { join } from "@std/path";
-import type { NewsArticle, ScraperContext, SourceAdapter } from "./types.ts";
+import type { ArticleSourceConfig, NewsArticle, ScraperContext } from "./types.ts";
 import { fetchText, normalizeEntry, parseFeed, shouldIncludeEntry, uniqueByCanonicalUrl, writeArticleFile } from "./utils.ts";
 
 export async function runFeedAdapter(
-  adapter: SourceAdapter,
+  config: ArticleSourceConfig,
   context: ScraperContext,
 ): Promise<NewsArticle[]> {
-  const xml = await fetchText(adapter.config.feedUrl);
+  const xml = await fetchText(config.feedUrl);
   const entries = parseFeed(xml)
-    .filter((entry) => shouldIncludeEntry(adapter.config, entry));
+    .filter((entry) => shouldIncludeEntry(config, entry));
 
   const articles = uniqueByCanonicalUrl(await Promise.all(
-    entries.map((entry) => normalizeEntry(adapter.config, entry, context.fetchedAt)),
+    entries.map((entry) => normalizeEntry(config, entry, context.fetchedAt)),
   ));
 
-  const outputDir = join(context.outputDir, adapter.config.id);
+  const outputDir = join(context.outputDir, config.id);
   for (const article of articles) {
     await writeArticleFile(outputDir, article);
   }

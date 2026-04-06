@@ -17,7 +17,7 @@ Lang News only aggregates items from official or primary language sources.
 ## Current sources
 
 - Rust Blog (`https://blog.rust-lang.org/`)
-- Python Insider (`https://pythoninsider.blogspot.com/`)
+- Python Insider (`https://blog.python.org/`)
 
 ## Pipeline
 
