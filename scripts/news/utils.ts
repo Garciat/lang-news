@@ -305,8 +305,6 @@ function renderHomePage(
   articles: NewsArticle[],
   options: HomePageRenderOptions,
 ): string {
-  const languages = uniqueValues(articles.map((article) => article.language))
-    .sort();
   const weekArchive = renderWeekArchive(options.weekArchive ?? []);
 
   return renderContentPage({
@@ -317,9 +315,7 @@ function renderHomePage(
       "Lang News tracks release announcements, language-level feature rollouts, standards updates, and roadmap posts from the primary sites for each language.",
     body: [
       weekArchive,
-      renderLanguageFilter(languages),
-      renderArticleFeed(articles, { id: "article-feed" }),
-      renderLanguageFilterScript(),
+      renderArticleFeed(articles),
     ].filter(Boolean).join("\n\n"),
   });
 }
@@ -340,9 +336,7 @@ export function renderLanguagePage(
 }
 
 function renderArticleCard(article: NewsArticle): string {
-  return `<article class="article-card" data-language="${
-    escapeHtml(article.language)
-  }">
+  return `<article class="article-card">
   <p class="eyebrow">${escapeHtml(article.language)} · ${
     escapeHtml(formatDate(article.date))
   }</p>
@@ -381,48 +375,10 @@ url: ${escapeYaml(url)}
 
 function renderArticleFeed(
   articles: NewsArticle[],
-  options: { id?: string } = {},
 ): string {
-  const idAttribute = options.id ? ` id="${escapeHtml(options.id)}"` : "";
-  return `<div class="article-feed"${idAttribute}>
+  return `<div class="article-feed">
 ${articles.map(renderArticleCard).join("\n")}
 </div>`;
-}
-
-function renderLanguageFilter(languages: string[]): string {
-  const languageOptions = languages
-    .map((language) =>
-      `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
-    )
-    .join("");
-
-  return `<div class="filters">
-  <label>
-    Language
-    <select id="language-filter">
-      <option value="">All languages</option>
-      ${languageOptions}
-    </select>
-  </label>
-</div>`;
-}
-
-function renderLanguageFilterScript(): string {
-  return `<script>
-  const languageFilter = document.getElementById("language-filter");
-  const cards = Array.from(document.querySelectorAll("[data-language]"));
-
-  function updateFeed() {
-    const language = languageFilter.value;
-
-    for (const card of cards) {
-      const matchesLanguage = !language || card.dataset.language === language;
-      card.hidden = !matchesLanguage;
-    }
-  }
-
-  languageFilter.addEventListener("change", updateFeed);
-</script>`;
 }
 
 function renderWeekArchive(entries: WeekArchiveEntry[]): string {
