@@ -1,5 +1,5 @@
 import type { SourceAdapter } from "../types.ts";
-import { runFeedAdapter } from "../source_adapter.ts";
+import { createFeedAdapter } from "../source_adapter.ts";
 
 const config = {
   id: "erlang-blog",
@@ -15,7 +15,4 @@ const config = {
   ],
 } as const;
 
-export const erlangAdapter: SourceAdapter = {
-  config,
-  scrape: (context) => runFeedAdapter(config, context),
-};
+export const erlangAdapter: SourceAdapter = createFeedAdapter(config);

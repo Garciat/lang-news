@@ -24,7 +24,6 @@ interface RenderedPage {
 interface HomePageRenderOptions {
   title: string;
   url: string;
-  weekLabel?: string;
   weekArchive?: WeekArchiveEntry[];
 }
 
@@ -54,6 +53,14 @@ interface WeeklyPage {
   group: WeeklyArticleGroup;
 }
 
+interface FeedNode {
+  textContent: string | null;
+  innerHTML: string;
+  tagName: string;
+  getAttribute(name: string): string | null;
+  querySelectorAll(selector: string): Iterable<unknown>;
+}
+
 const WEEK_ARCHIVE_WINDOW = 8;
 
 export async function ensureDir(path: string): Promise<void> {
@@ -77,23 +84,23 @@ export async function fetchText(url: string): Promise<string> {
 }
 
 export function parseFeed(xml: string): RawFeedEntry[] {
-  const itemBlocks = matchBlocks(xml, "item");
-  const entryBlocks = itemBlocks.length > 0
-    ? itemBlocks
-    : matchBlocks(xml, "entry");
+  const doc = new DOMParser().parseFromString(xml, "text/html");
+  const entries = doc
+    ? toFeedNodes(doc.querySelectorAll("item, entry"))
+    : [];
 
-  return entryBlocks.map((block) => {
-    const title = extractTag(block, "title");
-    const url = extractLink(block) || extractTag(block, "id") ||
-      extractTag(block, "link");
-    const publishedAt = extractTag(block, "pubDate") ||
-      extractTag(block, "published") ||
-      extractTag(block, "updated");
-    const updatedAt = extractTag(block, "updated");
-    const summaryHtml = extractTag(block, "description") ||
-      extractTag(block, "summary");
-    const contentHtml = extractTag(block, "content:encoded") ||
-      extractTag(block, "content");
+  if (!entries.length) {
+    throw new Error("Feed did not contain any item or entry elements.");
+  }
+
+  return Array.from(entries, (entry) => {
+    const title = readFeedText(entry, ["title"]);
+    const url = extractFeedUrl(entry) || readFeedText(entry, ["id", "link"]);
+    const publishedAt = readFeedText(entry, ["pubdate", "published", "updated"]);
+    const updatedAt = readFeedText(entry, ["updated"]);
+    const summaryHtml = readFeedInnerHtml(entry, ["description", "summary"]);
+    const contentHtml = readFeedInnerHtml(entry, ["content:encoded", "content"]);
+
     if (!title || !url || !publishedAt) {
       throw new Error("Feed entry is missing required fields.");
     }
@@ -273,7 +280,6 @@ export function renderHomePages(articles: NewsArticle[]): RenderedPage[] {
     content: renderHomePage(page.group.articles, {
       title: page.title,
       url: page.url,
-      weekLabel: page.group.label,
       weekArchive: buildWeekArchive(weeklyPages, index),
     }),
   }));
@@ -630,7 +636,7 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       return null;
     }
 
-    const [, frontMatter, body] = match;
+    const [, frontMatter] = match;
     const record = parseFrontMatter(frontMatter);
     const tags = Array.isArray(record.tags) ? record.tags : [];
 
@@ -653,10 +659,6 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       url: toString(record.url),
       sourceId: toString(record.sourceId),
     };
-
-    if (body.trim()) {
-      await Deno.writeTextFile(path, renderArticleMarkdown(article));
-    }
 
     return article;
   } catch (error) {
@@ -760,10 +762,6 @@ function decodeHtml(value: string): string {
     );
 }
 
-function toTitleCase(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("en", {
     year: "numeric",
@@ -772,32 +770,45 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function matchBlocks(xml: string, tagName: string): string[] {
-  return Array.from(
-    xml.matchAll(new RegExp(`<${tagName}\\b[\\s\\S]*?<\\/${tagName}>`, "gi")),
-    (matchedBlock) => matchedBlock[0],
-  );
+function readFeedText(element: FeedNode, tagNames: string[]): string {
+  for (const tagName of tagNames) {
+    const node = findFeedNode(element, tagName);
+    const text = node?.textContent?.trim();
+    if (text) {
+      return text;
+    }
+  }
+
+  return "";
 }
 
-function extractTag(block: string, tagName: string): string {
-  const match = block.match(
-    new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"),
-  );
-  return match?.[1]?.trim() ?? "";
+function readFeedInnerHtml(element: FeedNode, tagNames: string[]): string {
+  for (const tagName of tagNames) {
+    const node = findFeedNode(element, tagName);
+    const html = node?.innerHTML?.trim();
+    if (html) {
+      return html;
+    }
+  }
+
+  return "";
 }
 
-function extractLink(block: string): string {
-  const linkMatches = block.matchAll(/<link\b([^>]*)\/?>/gi);
+function extractFeedUrl(element: FeedNode): string {
+  const links = findFeedNodes(element, "link");
   let fallbackUrl = "";
 
-  for (const match of linkMatches) {
-    const attrs = match[1] ?? "";
-    const href = attrs.match(/\bhref="([^"]+)"/i)?.[1]?.trim();
+  for (const link of links) {
+    const href = link.getAttribute("href")?.trim();
     if (!href) {
+      const text = link.textContent?.trim();
+      if (text) {
+        fallbackUrl = fallbackUrl || text;
+      }
       continue;
     }
 
-    const rel = attrs.match(/\brel="([^"]+)"/i)?.[1]?.toLowerCase() ?? "";
+    const rel = (link.getAttribute("rel") ?? "").toLowerCase();
     if (rel.includes("alternate")) {
       return href;
     }
@@ -808,6 +819,30 @@ function extractLink(block: string): string {
   }
 
   return fallbackUrl;
+}
+
+function findFeedNode(element: FeedNode, tagName: string): FeedNode | null {
+  return findFeedNodes(element, tagName)[0] ?? null;
+}
+
+function findFeedNodes(element: FeedNode, tagName: string): FeedNode[] {
+  const normalizedName = tagName.toLowerCase();
+  return toFeedNodes(element.querySelectorAll("*")).filter((node) =>
+    node.tagName.toLowerCase() === normalizedName
+  );
+}
+
+function toFeedNodes(nodes: Iterable<unknown>): FeedNode[] {
+  return Array.from(nodes).filter(isFeedNode);
+}
+
+function isFeedNode(value: unknown): value is FeedNode {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  return "textContent" in value && "innerHTML" in value && "tagName" in value &&
+    "getAttribute" in value && "querySelectorAll" in value;
 }
 
 function normalizeText(text: string): string {

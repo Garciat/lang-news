@@ -4,6 +4,7 @@ import type {
   NewsArticle,
   RawFeedEntry,
   ScraperContext,
+  SourceAdapter,
 } from "./types.ts";
 import {
   articleFileName,
@@ -22,6 +23,15 @@ export async function runFeedAdapter(
 ): Promise<NewsArticle[]> {
   const xml = await fetchText(config.feedUrl);
   return await runEntriesAdapter(config, context, parseFeed(xml));
+}
+
+export function createFeedAdapter(
+  config: ArticleSourceConfig,
+): SourceAdapter {
+  return {
+    config,
+    scrape: (context) => runFeedAdapter(config, context),
+  };
 }
 
 export async function runHtmlAdapter(

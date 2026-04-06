@@ -1,5 +1,5 @@
 import type { SourceAdapter } from "../types.ts";
-import { runFeedAdapter } from "../source_adapter.ts";
+import { createFeedAdapter } from "../source_adapter.ts";
 
 const config = {
   id: "swift-blog",
@@ -18,7 +18,4 @@ const config = {
   ],
 } as const;
 
-export const swiftAdapter: SourceAdapter = {
-  config,
-  scrape: (context) => runFeedAdapter(config, context),
-};
+export const swiftAdapter: SourceAdapter = createFeedAdapter(config);

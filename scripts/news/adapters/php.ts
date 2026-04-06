@@ -1,5 +1,5 @@
 import type { SourceAdapter } from "../types.ts";
-import { runFeedAdapter } from "../source_adapter.ts";
+import { createFeedAdapter } from "../source_adapter.ts";
 
 const config = {
   id: "php-releases",
@@ -15,7 +15,4 @@ const config = {
   ],
 } as const;
 
-export const phpAdapter: SourceAdapter = {
-  config,
-  scrape: (context) => runFeedAdapter(config, context),
-};
+export const phpAdapter: SourceAdapter = createFeedAdapter(config);

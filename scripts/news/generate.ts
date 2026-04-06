@@ -20,6 +20,7 @@ import {
   NEWS_META_PATH,
   NEWS_SITE_DIR,
   type NewsMeta,
+  type NewsArticle,
   type SourceAdapter,
   type SourceRunResult,
 } from "./types.ts";
@@ -91,9 +92,8 @@ for (const adapter of adapters) {
 }
 
 const articles = await loadArticleSummaries(articlesRoot);
-const languages = Array.from(
-  new Set(articles.map((article) => article.language)),
-).sort();
+const articlesByLanguage = groupArticlesByLanguage(articles);
+const languages = Array.from(articlesByLanguage.keys()).sort();
 
 await clearDir(siteRoot);
 for (const page of renderHomePages(articles)) {
@@ -103,9 +103,7 @@ for (const page of renderHomePages(articles)) {
 const languagesDir = join(siteRoot, "languages");
 await ensureDir(languagesDir);
 for (const language of languages) {
-  const languageArticles = articles.filter((article) =>
-    article.language === language
-  );
+  const languageArticles = articlesByLanguage.get(language) ?? [];
   await Deno.writeTextFile(
     join(
       languagesDir,
@@ -140,4 +138,18 @@ async function pruneInactiveSourceDirectories(
 
     await Deno.remove(join(rootDir, entry.name), { recursive: true });
   }
+}
+
+function groupArticlesByLanguage(
+  articles: NewsArticle[],
+): Map<string, NewsArticle[]> {
+  const grouped = new Map<string, NewsArticle[]>();
+
+  for (const article of articles) {
+    const languageArticles = grouped.get(article.language) ?? [];
+    languageArticles.push(article);
+    grouped.set(article.language, languageArticles);
+  }
+
+  return grouped;
 }
