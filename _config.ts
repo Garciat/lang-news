@@ -21,7 +21,8 @@ function getBasePath(): string {
     return "/";
   }
 
-  const [, repo] = repository.split("/", 2);
+  const repositoryParts = repository.split("/", 2);
+  const repo = repositoryParts[1];
 
   if (!repo) {
     return "/";
