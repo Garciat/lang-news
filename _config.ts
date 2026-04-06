@@ -5,7 +5,6 @@ import vento from "https://deno.land/x/lume@v1.19.4/plugins/vento.ts";
 const site = lume({
   src: "./src",
   dest: "./dist",
-  location: new URL("https://garciat.com/"),
 });
 
 site.use(basePath());
