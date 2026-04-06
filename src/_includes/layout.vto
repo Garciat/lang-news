@@ -72,6 +72,10 @@
       margin-top: 0.75rem;
     }
     .week-archive-item {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 14px;
@@ -84,6 +88,7 @@
     }
     .week-archive-title {
       margin: 0;
+      flex: 0 0 auto;
       font-size: 1rem;
       line-height: 1.3;
     }
@@ -97,8 +102,10 @@
     .week-chip-list {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
+      flex: 1 1 auto;
       gap: 0.4rem;
-      margin-top: 0.75rem;
+      margin-top: 0;
     }
     .week-chip {
       display: inline-flex;
