@@ -381,7 +381,6 @@ function renderWeekArchive(entries: WeekArchiveEntry[]): string {
   }
 
   return `<div class="week-archive">
-  <p class="eyebrow">Week archive</p>
   <div class="week-archive-list">
 ${entries.map((entry) => renderWeekArchiveEntry(entry)).join("\n")}
   </div>
