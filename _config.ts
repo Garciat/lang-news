@@ -15,13 +15,13 @@ export default site;
 
 function getBasePath(): string {
   const repository = Deno.env.get("GITHUB_REPOSITORY");
-  const owner = Deno.env.get("GITHUB_REPOSITORY_OWNER");
 
   if (!repository) {
     return "/";
   }
 
-  const [, repo = ""] = repository.split("/", 2);
+  const [repoOwner = "", repo = ""] = repository.split("/", 2);
+  const owner = Deno.env.get("GITHUB_REPOSITORY_OWNER") ?? repoOwner;
 
   if (!repo) {
     return "/";
