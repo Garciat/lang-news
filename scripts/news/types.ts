@@ -19,9 +19,9 @@ export interface ArticleSourceConfig {
   sourceName: string;
   sourceUrl: string;
   feedUrl: string;
-  tags: string[];
-  includePatterns: RegExp[];
-  excludePatterns?: RegExp[];
+  tags: readonly string[];
+  includePatterns: readonly RegExp[];
+  excludePatterns?: readonly RegExp[];
 }
 
 export interface RawFeedEntry {
