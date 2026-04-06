@@ -9,14 +9,18 @@ import {
 } from "./types.ts";
 
 const CATEGORY_PATTERNS: Record<ArticleCategory, RegExp[]> = {
-  release: [/(\b|v)\d+\.\d+(?:\.\d+)?\b/i, /release|released|stable|beta|alpha|rc/i],
+  release: [
+    /(\b|v)\d+\.\d+(?:\.\d+)?\b/i,
+    /release|released|stable|beta|alpha|rc/i,
+  ],
   feature: [/feature|stabiliz|language support|improvement|new in|syntax/i],
   spec: [/spec|pep|rfc|proposal|edition|standard|roadmap/i],
   tooling: [/cargo|pip|build tool|package manager|tooling|compiler/i],
   announcement: [/announc|update|status|blog/i],
 };
 
-const VERSION_PATTERN = /\b(?:v)?(\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)?)\b/;
+const VERSION_PATTERN =
+  /\b(?:v)?(\d+\.\d+(?:\.\d+)?(?:-[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)?)\b/;
 const FRONT_MATTER_PATTERN = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
 export const INCLUSION_RULES = [
@@ -33,7 +37,8 @@ export async function fetchText(url: string): Promise<string> {
   const response = await fetch(url, {
     headers: {
       "user-agent": "lang-news-bot/1.0 (+https://github.com/Garciat/lang-news)",
-      accept: "application/atom+xml, application/rss+xml, application/xml, text/xml, text/html",
+      accept:
+        "application/atom+xml, application/rss+xml, application/xml, text/xml, text/html",
     },
   });
 
@@ -46,15 +51,22 @@ export async function fetchText(url: string): Promise<string> {
 
 export function parseFeed(xml: string): RawFeedEntry[] {
   const itemBlocks = matchBlocks(xml, "item");
-  const entryBlocks = itemBlocks.length > 0 ? itemBlocks : matchBlocks(xml, "entry");
+  const entryBlocks = itemBlocks.length > 0
+    ? itemBlocks
+    : matchBlocks(xml, "entry");
 
   return entryBlocks.map((block) => {
     const title = extractTag(block, "title");
-    const url = extractLink(block) || extractTag(block, "link") || extractTag(block, "id");
-    const publishedAt = extractTag(block, "pubDate") || extractTag(block, "published") ||
+    const url = extractLink(block) || extractTag(block, "link") ||
+      extractTag(block, "id");
+    const publishedAt = extractTag(block, "pubDate") ||
+      extractTag(block, "published") ||
       extractTag(block, "updated");
     const updatedAt = extractTag(block, "updated");
-    const summaryHtml = extractTag(block, "description") || extractTag(block, "summary");
+    const summaryHtml = extractTag(block, "description") ||
+      extractTag(block, "summary");
+    const contentHtml = extractTag(block, "content:encoded") ||
+      extractTag(block, "content");
     if (!title || !url || !publishedAt) {
       throw new Error("Feed entry is missing required fields.");
     }
@@ -65,12 +77,18 @@ export function parseFeed(xml: string): RawFeedEntry[] {
       publishedAt: decodeHtml(publishedAt),
       updatedAt: updatedAt ? decodeHtml(updatedAt) : undefined,
       summaryHtml: summaryHtml ? decodeHtml(summaryHtml) : undefined,
+      contentHtml: contentHtml ? decodeHtml(contentHtml) : undefined,
     } satisfies RawFeedEntry;
   });
 }
 
-export function shouldIncludeEntry(config: ArticleSourceConfig, entry: RawFeedEntry): boolean {
-  const haystack = `${entry.title}\n${htmlToSummaryText(entry.summaryHtml ?? "")}`;
+export function shouldIncludeEntry(
+  config: ArticleSourceConfig,
+  entry: RawFeedEntry,
+): boolean {
+  const haystack = `${entry.title}\n${
+    htmlToSummaryText(entry.summaryHtml ?? entry.contentHtml ?? "")
+  }`;
 
   if (config.excludePatterns?.some((pattern) => pattern.test(haystack))) {
     return false;
@@ -85,7 +103,9 @@ export async function normalizeEntry(
   collectedAt: string,
 ): Promise<NewsArticle> {
   const canonicalUrl = normalizeUrl(entry.url);
-  const summarySource = htmlToSummaryText(entry.summaryHtml ?? "");
+  const summarySource = htmlToSummaryText(
+    entry.summaryHtml ?? entry.contentHtml ?? "",
+  );
   const summary = truncate(summarySource || cleanWhitespace(entry.title), 280);
   const category = inferCategory(entry.title, summary);
   const version = detectVersion(entry.title) ?? detectVersion(summary);
@@ -114,7 +134,9 @@ export async function normalizeEntry(
     tags,
     collectedAt,
     updatedAt: collectedAt,
-    sourceUpdatedAt: entry.updatedAt ? normalizeDate(entry.updatedAt) : undefined,
+    sourceUpdatedAt: entry.updatedAt
+      ? normalizeDate(entry.updatedAt)
+      : undefined,
     contentHash,
     url,
     sourceId: config.id,
@@ -133,9 +155,15 @@ export function uniqueByCanonicalUrl(articles: NewsArticle[]): NewsArticle[] {
   return Array.from(seen.values());
 }
 
-export async function writeArticleFile(directory: string, article: NewsArticle): Promise<void> {
+export async function writeArticleFile(
+  directory: string,
+  article: NewsArticle,
+): Promise<void> {
   await ensureDir(directory);
-  const filePath = join(directory, `${article.date.slice(0, 10)}-${article.id}.md`);
+  const filePath = join(
+    directory,
+    `${article.date.slice(0, 10)}-${article.id}.md`,
+  );
   const existing = await readArticleFile(filePath);
   const updatedAt = existing && existing.contentHash === article.contentHash
     ? existing.updatedAt
@@ -145,7 +173,9 @@ export async function writeArticleFile(directory: string, article: NewsArticle):
   await Deno.writeTextFile(filePath, renderArticleMarkdown(nextArticle));
 }
 
-export async function loadArticleSummaries(rootDir: string): Promise<NewsArticle[]> {
+export async function loadArticleSummaries(
+  rootDir: string,
+): Promise<NewsArticle[]> {
   const articles: NewsArticle[] = [];
 
   try {
@@ -190,14 +220,22 @@ export async function clearDir(path: string): Promise<void> {
 }
 
 export function renderHomePage(articles: NewsArticle[]): string {
-  const languages = uniqueValues(articles.map((article) => article.language)).sort();
-  const categories = uniqueValues(articles.map((article) => article.category)).sort();
+  const languages = uniqueValues(articles.map((article) => article.language))
+    .sort();
+  const categories = uniqueValues(articles.map((article) => article.category))
+    .sort();
   const articleCards = articles.map(renderArticleCard).join("\n");
   const languageOptions = languages
-    .map((language) => `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`)
+    .map((language) =>
+      `<option value="${escapeHtml(language)}">${escapeHtml(language)}</option>`
+    )
     .join("");
   const categoryOptions = categories
-    .map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(toTitleCase(category))}</option>`)
+    .map((category) =>
+      `<option value="${escapeHtml(category)}">${
+        escapeHtml(toTitleCase(category))
+      }</option>`
+    )
     .join("");
 
   return `---
@@ -253,7 +291,10 @@ ${articleCards}
 `;
 }
 
-export function renderLanguagePage(language: string, articles: NewsArticle[]): string {
+export function renderLanguagePage(
+  language: string,
+  articles: NewsArticle[],
+): string {
   const articleCards = articles.map(renderArticleCard).join("\n");
 
   return `---
@@ -273,11 +314,17 @@ ${articleCards}
 }
 
 function renderArticleCard(article: NewsArticle): string {
-  return `<article class="article-card" data-language="${escapeHtml(article.language)}" data-category="${escapeHtml(article.category)}">
-  <p class="eyebrow">${escapeHtml(article.language)} · ${escapeHtml(toTitleCase(article.category))} · ${escapeHtml(formatDate(article.date))}</p>
+  return `<article class="article-card" data-language="${
+    escapeHtml(article.language)
+  }" data-category="${escapeHtml(article.category)}">
+  <p class="eyebrow">${escapeHtml(article.language)} · ${
+    escapeHtml(toTitleCase(article.category))
+  } · ${escapeHtml(formatDate(article.date))}</p>
   <h2><a href="${escapeHtml(article.url)}">${escapeHtml(article.title)}</a></h2>
   <p>${escapeHtml(article.summary)}</p>
-  <p class="meta">Source: <a href="${escapeHtml(article.canonicalUrl)}">${escapeHtml(article.sourceName)}</a></p>
+  <p class="meta">Source: <a href="${escapeHtml(article.canonicalUrl)}">${
+    escapeHtml(article.sourceName)
+  }</a></p>
 </article>`;
 }
 
@@ -305,7 +352,11 @@ function htmlToText(html: string): string {
     item.prepend(doc.createTextNode("- "));
   }
 
-  for (const block of doc.querySelectorAll("p, div, section, article, li, ul, ol, h1, h2, h3, h4, h5, h6, pre, blockquote")) {
+  for (
+    const block of doc.querySelectorAll(
+      "p, div, section, article, li, ul, ol, h1, h2, h3, h4, h5, h6, pre, blockquote",
+    )
+  ) {
     block.append("\n");
   }
 
@@ -420,11 +471,11 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       return null;
     }
 
-    const [, frontMatter] = match;
+    const [, frontMatter, body] = match;
     const record = parseFrontMatter(frontMatter);
     const tags = Array.isArray(record.tags) ? record.tags : [];
 
-    return {
+    const article = {
       id: toString(record.articleId),
       title: toString(record.title),
       date: toString(record.date),
@@ -443,6 +494,12 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
       url: toString(record.url),
       sourceId: toString(record.sourceId),
     };
+
+    if (body.trim()) {
+      await Deno.writeTextFile(path, renderArticleMarkdown(article));
+    }
+
+    return article;
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
       return null;
@@ -451,7 +508,9 @@ async function readArticleFile(path: string): Promise<NewsArticle | null> {
   }
 }
 
-function parseFrontMatter(frontMatter: string): Record<string, string | string[]> {
+function parseFrontMatter(
+  frontMatter: string,
+): Record<string, string | string[]> {
   const record: Record<string, string | string[]> = {};
   let currentKey = "";
 
@@ -462,7 +521,9 @@ function parseFrontMatter(frontMatter: string): Record<string, string | string[]
     }
 
     if (line.startsWith("  - ") && currentKey) {
-      const values = Array.isArray(record[currentKey]) ? record[currentKey] as string[] : [];
+      const values = Array.isArray(record[currentKey])
+        ? record[currentKey] as string[]
+        : [];
       values.push(unquote(line.slice(4)));
       record[currentKey] = values;
       continue;
@@ -482,7 +543,10 @@ function parseFrontMatter(frontMatter: string): Record<string, string | string[]
 }
 
 function unquote(value: string): string {
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
     return value.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
   return value;
@@ -492,7 +556,9 @@ function toString(value: string | string[] | undefined): string {
   return typeof value === "string" ? value : "";
 }
 
-function optionalString(value: string | string[] | undefined): string | undefined {
+function optionalString(
+  value: string | string[] | undefined,
+): string | undefined {
   const text = toString(value);
   return text || undefined;
 }
@@ -529,7 +595,10 @@ function decodeHtml(value: string): string {
     })
     .replace(/&#39;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
+    .replace(
+      /&#x([0-9a-f]+);/gi,
+      (_, code) => String.fromCodePoint(Number.parseInt(code, 16)),
+    );
 }
 
 function toTitleCase(value: string): string {
@@ -552,12 +621,16 @@ function matchBlocks(xml: string, tagName: string): string[] {
 }
 
 function extractTag(block: string, tagName: string): string {
-  const match = block.match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  const match = block.match(
+    new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"),
+  );
   return match?.[1]?.trim() ?? "";
 }
 
 function extractLink(block: string): string {
-  const alternateMatch = block.match(/<link\b[^>]*href="([^"]+)"[^>]*rel="alternate"[^>]*\/?>/i);
+  const alternateMatch = block.match(
+    /<link\b[^>]*href="([^"]+)"[^>]*rel="alternate"[^>]*\/?>/i,
+  );
   if (alternateMatch?.[1]) {
     return alternateMatch[1].trim();
   }

@@ -8,13 +8,17 @@ url: /methodology/
 
 Lang News only aggregates items from official or primary language sources.
 
-It publishes short summaries and links back to the original source instead of republishing full article bodies.
+It publishes short summaries and links back to the original source instead of
+republishing full article bodies.
 
 ## Inclusion rules
 
 - Official language sites, blogs, feeds, or standards bodies only.
-- Keep new versions, release candidates, language feature announcements, standards or proposal updates, roadmap posts, and comparable language-level announcements.
-- Skip tutorials, opinion posts, third-party commentary, and ecosystem news that is not clearly about the language itself.
+- Keep new versions, release candidates, language feature announcements,
+  standards or proposal updates, roadmap posts, and comparable language-level
+  announcements.
+- Skip tutorials, opinion posts, third-party commentary, and ecosystem news that
+  is not clearly about the language itself.
 
 ## Current sources
 

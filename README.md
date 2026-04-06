@@ -1,6 +1,8 @@
 # lang-news
 
-Lang News is a static site that aggregates high-signal programming language news from official sources using [Lume](https://lume.land) and [Deno](https://deno.land).
+Lang News is a static site that aggregates high-signal programming language news
+from official sources using [Lume](https://lume.land) and
+[Deno](https://deno.land).
 
 ## Scope
 
@@ -11,7 +13,8 @@ The site focuses on official language-level updates such as:
 - specifications, proposals, and standards updates
 - roadmap and status announcements
 
-It intentionally excludes tutorials, opinion posts, and third-party ecosystem coverage.
+It intentionally excludes tutorials, opinion posts, and third-party ecosystem
+coverage.
 
 ## Current sources
 
