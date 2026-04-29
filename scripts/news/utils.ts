@@ -833,7 +833,7 @@ function extractFeedUrl(element: FeedNode, rawEntry = ""): string {
     const href = link.getAttribute("href")?.trim();
     if (!href) {
       const text = link.textContent?.trim();
-      if (text) {
+      if (looksLikeFeedUrl(text)) {
         fallbackUrl = fallbackUrl || text;
       }
       continue;
@@ -849,7 +849,12 @@ function extractFeedUrl(element: FeedNode, rawEntry = ""): string {
     }
   }
 
-  return fallbackUrl || readFeedTagTextFromXml(rawEntry, "link");
+  const rawLinkText = readFeedTagTextFromXml(rawEntry, "link");
+  return fallbackUrl || (looksLikeFeedUrl(rawLinkText) ? rawLinkText : "");
+}
+
+function looksLikeFeedUrl(value: string | null | undefined): value is string {
+  return typeof value === "string" && /^(?:https?:)?\/\//i.test(value);
 }
 
 function findFeedNode(element: FeedNode, tagName: string): FeedNode | null {
