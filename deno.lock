@@ -4,7 +4,9 @@
     "jsr:@std/assert@*": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.1.2": "1.1.4",
+    "jsr:@std/xml@*": "0.2.0",
     "jsr:@std/yaml@^1.0.5": "1.0.10",
+    "jsr:@zod/zod@*": "4.4.3",
     "npm:@types/nunjucks@3.2.6": "3.2.6",
     "npm:@types/react-dom@18.2.7": "18.2.7",
     "npm:@types/react@18.2.33": "18.2.33",
@@ -29,8 +31,14 @@
         "jsr:@std/internal"
       ]
     },
+    "@std/xml@0.2.0": {
+      "integrity": "e0b54ae29592bc1fc688109f78ef5c18680bf820ba8aa0a3990a115e709e58d2"
+    },
     "@std/yaml@1.0.10": {
       "integrity": "245706ea3511cc50c8c6d00339c23ea2ffa27bd2c7ea5445338f8feff31fa58e"
+    },
+    "@zod/zod@4.4.3": {
+      "integrity": "4712ac0967efaa718b37c36eaffb4e1d4457e1a266aef6efb3ab36f54a6fefe4"
     }
   },
   "npm": {
