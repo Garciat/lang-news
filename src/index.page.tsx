@@ -27,21 +27,19 @@ export default (data: Lume.Data, h: Lume.Helpers) => {
               <header>
                 <h3>{date}</h3>
               </header>
-              <ul>
-                {articles.map((article) => (
-                  <li>
-                    {`[${article.source}]`}{" "}
-                    <a href={article.articleLink.toString()}>{article.title}</a>
-                    {" "}
-                    <small>
-                      {article.date.toTemporalInstant().toZonedDateTimeISO(
-                        "UTC",
-                      )
-                        .toPlainDate().toString()}
-                    </small>
-                  </li>
-                ))}
-              </ul>
+              {articles.map((article) => (
+                <article>
+                  {`[${article.source}]`}{" "}
+                  <a href={article.articleLink.toString()}>{article.title}</a>
+                  {" "}
+                  <small>
+                    {article.date.toTemporalInstant().toZonedDateTimeISO(
+                      "UTC",
+                    )
+                      .toPlainDate().toString()}
+                  </small>
+                </article>
+              ))}
             </section>
           )
           ).toArray()}

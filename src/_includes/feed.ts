@@ -120,6 +120,21 @@ namespace xod {
     };
   }
 
+  export function optional<T>(
+    parser: ElementParser<T>,
+  ): XmlChildParser<T | undefined> {
+    return (elements) => {
+      switch (elements.length) {
+        case 0:
+          return safeSuccess(undefined);
+        case 1:
+          return parser(elements[0]);
+        default:
+          return safeFail("expected exactly one child of specific type");
+      }
+    };
+  }
+
   export function some<T>(
     parser: ElementParser<T>,
   ): XmlChildParser<ReadonlyArray<T>> {
@@ -283,20 +298,21 @@ namespace xod {
 
 // RSS
 
-interface RssFeed {
+export interface RssFeed {
   channels: ReadonlyArray<RssChannel>;
 }
 
-interface RssChannel {
+export interface RssChannel {
   title: string;
   lastBuildDate: Date;
   items: ReadonlyArray<RssItem>;
 }
 
-interface RssItem {
+export interface RssItem {
   title: string;
   link: URL;
   pubDate: Date;
+  description?: string;
 }
 
 const DateRfc2822Schema = zod
@@ -315,14 +331,16 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     "item",
     zod.object(),
     {
-      title: xod.one(xod.text(zod.string())),
+      title: xod.optional(xod.text(zod.string())),
       link: xod.one(xod.text(UrlSchema)),
       pubDate: xod.one(xod.text(DateRfc2822Schema)),
+      description: xod.optional(xod.text(zod.string())),
     },
     ({ children }) => ({
-      title: children.title,
+      title: children.title ?? "???",
       link: children.link,
       pubDate: children.pubDate,
+      description: children.description,
     } satisfies RssItem),
   );
 
@@ -404,6 +422,7 @@ function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
   const entry = xod.element("entry", zod.object(), {
     title: xod.one(xod.text(zod.string())),
     id: xod.one(xod.text(UrlSchema)),
+    link: xod.many(link),
     updated: xod.one(
       xod.text(
         zod.iso.datetime({ offset: true }).transform((value) =>
@@ -414,7 +433,8 @@ function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
     category: xod.many(category),
   }, ({ children }) => ({
     title: children.title,
-    link: children.id,
+    // TODO lil hack to avoid checking link:rel
+    link: children.link.length === 1 ? children.link[0] : children.id,
     updated: children.updated,
     categories: new Set(children.category),
   } satisfies AtomEntry));

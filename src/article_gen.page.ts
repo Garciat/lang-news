@@ -2,7 +2,12 @@ import { MuxAsyncIterator } from "jsr:@std/async/mux-async-iterator";
 
 import * as zod from "jsr:@zod/zod";
 
-import { AtomEntry, readAtomFeed, readRssFeed } from "./_includes/feed.ts";
+import {
+  AtomEntry,
+  readAtomFeed,
+  readRssFeed,
+  RssItem,
+} from "./_includes/feed.ts";
 import { ArticlePageData } from "./_includes/types.ts";
 
 const ArticleSchema = zod.object({
@@ -48,9 +53,16 @@ export default async function* (
       "haskell",
       "https://blog.haskell.org/atom.xml",
     ),
-    atom(
+    rss(
       "java",
-      "https://inside.java/feed.xml",
+      // "https://feed.infoq.com/openjdk/news/",
+      "https://bsky.app/profile/jeptracker.bsky.social/rss",
+      {
+        mapper: (item) => ({
+          ...item,
+          title: item.description ?? "???",
+        }),
+      },
     ),
     rss(
       "kotlin",
@@ -123,6 +135,7 @@ export default async function* (
 async function* rss(
   source: string,
   url: string,
+  options?: { mapper?: (item: RssItem) => RssItem },
 ): AsyncGenerator<Article> {
   const feed = await readRssFeed(
     url,
@@ -132,13 +145,17 @@ async function* rss(
     `[${source}] fetched ${feed.channels[0].items.length} articles`,
   );
 
+  const mapper = options?.mapper ?? ((item) => item);
+
+  const builder = (item: RssItem) => ({
+    title: item.title,
+    date: item.pubDate,
+    link: item.link,
+    source: source,
+  });
+
   for (const item of feed.channels[0].items) {
-    yield {
-      title: item.title,
-      date: item.pubDate,
-      link: item.link,
-      source: source,
-    };
+    yield builder(mapper(item));
   }
 }
 
