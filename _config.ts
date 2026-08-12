@@ -6,6 +6,7 @@ import slugifyUrls from "lume/plugins/slugify_urls.ts";
 
 const site = lume({
   src: "./src",
+  dest: "./dist",
 }).add([
   ".css",
   ".jpg",
