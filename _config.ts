@@ -1,13 +1,19 @@
-import lume from "https://deno.land/x/lume@v1.19.4/mod.ts";
-import basePath from "https://deno.land/x/lume@v1.19.4/plugins/base_path.ts";
-import vento from "https://deno.land/x/lume@v1.19.4/plugins/vento.ts";
+import lume from "lume/mod.ts";
+import basePath from "lume/plugins/base_path.ts";
+import vento from "lume/plugins/vento.ts";
+import jsx from "lume/plugins/jsx.ts";
+import slugifyUrls from "lume/plugins/slugify_urls.ts";
 
 const site = lume({
   src: "./src",
-  dest: "./dist",
-});
-
-site.use(basePath());
-site.use(vento());
+}).add([
+  ".css",
+  ".jpg",
+  ".png",
+  ".ico",
+  ".html",
+]).use(basePath())
+  .use(jsx())
+  .use(slugifyUrls());
 
 export default site;
