@@ -20,7 +20,7 @@ const ArticleSchema = zod.object({
 type Article = zod.infer<typeof ArticleSchema>;
 
 export default async function* (
-  { config }: Lume.Data,
+  _data: Lume.Data,
   h: Lume.Helpers,
 ): AsyncGenerator<Partial<Lume.Data<ArticlePageData>>> {
   const dateSlug = (date: Date) =>
@@ -192,14 +192,4 @@ async function combine<T>(...gens: AsyncGenerator<T>[]): Promise<T[]> {
     mux.add(gen);
   }
   return await Array.fromAsync(mux);
-}
-
-function dedupeBy<T, K>(
-  items: ReadonlyArray<T>,
-  key: (value: T) => K,
-): ReadonlyArray<T> {
-  return Map.groupBy(items, key)
-    .values()
-    .map((group) => group[0])
-    .toArray();
 }
