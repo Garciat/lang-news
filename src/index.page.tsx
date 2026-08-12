@@ -4,8 +4,8 @@ export const layout = "layouts/base.tsx";
 
 export const title = "Programming Language News";
 
-export default (data: Lume.Data, h: Lume.Helpers) => {
-  const { search, config, page } = data;
+export default (data: Lume.Data, _h: Lume.Helpers) => {
+  const { search } = data;
 
   const articles = search.pages<Lume.Data<ArticlePageData>>(
     "type=article",
@@ -28,16 +28,17 @@ export default (data: Lume.Data, h: Lume.Helpers) => {
                 <h3>{date}</h3>
               </header>
               {articles.map((article) => (
-                <article>
-                  {`[${article.source}]`}{" "}
-                  <a href={article.articleLink.toString()}>{article.title}</a>
-                  {" "}
+                <article style={{ margin: "1em 0" }}>
                   <small>
                     {article.date.toTemporalInstant().toZonedDateTimeISO(
                       "UTC",
                     )
                       .toPlainDate().toString()}
-                  </small>
+                  </small>{" "}
+                  <small>
+                    <strong>{`[${article.source}]`}</strong>
+                  </small>{" "}
+                  <a href={article.articleLink.toString()}>{article.title}</a>
                 </article>
               ))}
             </section>
