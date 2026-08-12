@@ -1,13 +1,34 @@
 {
-  "tasks": {
-    "lume": "deno run --allow-read --allow-write --allow-net --allow-env --allow-run https://deno.land/x/lume@v1.19.4/cli.ts",
-    "ingest": "deno run --allow-read --allow-write --allow-net scripts/news/generate.ts",
-    "build": "deno task ingest && deno task lume",
-    "serve": "deno task ingest && deno task lume -s"
-  },
   "imports": {
-    "@std/path": "jsr:@std/path@^1.1.2",
-    "@std/yaml": "jsr:@std/yaml@^1.0.5",
-    "lume/": "https://deno.land/x/lume@v1.19.4/"
-  }
+    "lume/": "https://cdn.jsdelivr.net/gh/lumeland/lume@3.3.1/",
+    "lume/jsx-runtime": "https://cdn.jsdelivr.net/gh/oscarotero/ssx@0.1.15/jsx-runtime.ts"
+  },
+  "tasks": {
+    "lume": "deno run -A lume/cli.ts",
+    "build": "deno task lume",
+    "serve": "deno task lume -s"
+  },
+  "compilerOptions": {
+    "types": [
+      "lume/types.ts"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "lume",
+    "strict": true
+  },
+  "unstable": [
+    "temporal",
+    "fmt-component"
+  ],
+  "lint": {
+    "plugins": [
+      "https://cdn.jsdelivr.net/gh/lumeland/lume@3.3.1/lint.ts"
+    ],
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  },
+  "lock": false
 }

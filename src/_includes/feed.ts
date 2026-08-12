@@ -45,37 +45,35 @@ namespace xod {
     };
   }
 
-  type ParserResultGatherer<T> = {
-    [K in keyof T]: Array<ParserResult<T[K]>>;
-  };
-
-  function _emptyParserResultArray<K, V>(
-    [k, _]: [K, V],
-  ): [K, Array<ParserResult<V>>] {
-    return [k, []];
-  }
-
-  function _emptyParserResultGatherer<T extends object>(
-    obj: T,
-  ): ParserResultGatherer<T> {
-    return Object.fromEntries(
-      Object.entries(obj).map(_emptyParserResultArray),
-    ) as ParserResultGatherer<T>;
-  }
-
   type XmlAttributesParser<T> = Parser<Readonly<Record<string, string>>, T>;
 
   type XmlChildrenParser<R> = Parser<ReadonlyArray<XML.XmlNode>, R>;
 
-  type XmlChildrenParserRecord<T> = {
-    [K in keyof T]: T[K] extends Parser<XML.XmlElement, infer R>
-      ? Parser<XML.XmlElement, R>
+  type ElementParser<R> = Parser<XML.XmlElement, R>;
+
+  type XmlChildParser<R> = Parser<
+    ReadonlyArray<XML.XmlElement>,
+    R
+  >;
+
+  type XmlChildrenParserRecord<C> = {
+    [K in keyof C & string]: C[K] extends XmlChildParser<infer R>
+      ? XmlChildParser<R>
       : never;
   };
 
   type XmlChildrenParserRecordResult<C> = {
-    [K in keyof C]: ReadonlyArray<ParserResult<C[K]>>;
+    [K in keyof C]: C[K] extends XmlChildParser<infer R> ? R
+      : never;
   };
+
+  function _emptyParserRecordResult<T extends object>(
+    obj: T,
+  ): XmlChildrenParserRecordResult<T> {
+    return Object.fromEntries(
+      Object.entries(obj).map(([key, _]) => [key, undefined]), // TODO: undefined is wrong
+    ) as XmlChildrenParserRecordResult<T>;
+  }
 
   export function element<C extends XmlChildrenParserRecord<C>, A, R>(
     name: string,
@@ -111,6 +109,59 @@ namespace xod {
     );
   }
 
+  export function one<T>(parser: ElementParser<T>): XmlChildParser<T> {
+    return (elements) => {
+      switch (elements.length) {
+        case 1:
+          return parser(elements[0]);
+        default:
+          return safeFail("expected exactly one child of specific type");
+      }
+    };
+  }
+
+  export function some<T>(
+    parser: ElementParser<T>,
+  ): XmlChildParser<ReadonlyArray<T>> {
+    return (elements) => {
+      if (elements.length === 1) {
+        return safeFail("expected at least one child of specific type");
+      }
+
+      const output: T[] = [];
+
+      for (const elem of elements) {
+        const result = parser(elem);
+        if (result.success) {
+          output.push(result.data);
+        } else {
+          return result;
+        }
+      }
+
+      return safeSuccess(output);
+    };
+  }
+
+  export function many<T>(
+    parser: ElementParser<T>,
+  ): XmlChildParser<ReadonlyArray<T>> {
+    return (elements) => {
+      const output: T[] = [];
+
+      for (const elem of elements) {
+        const result = parser(elem);
+        if (result.success) {
+          output.push(result.data);
+        } else {
+          return result;
+        }
+      }
+
+      return safeSuccess(output);
+    };
+  }
+
   function parsingXmlTextChildren(): XmlChildrenParser<string> {
     return (nodes) => {
       let result = "";
@@ -137,22 +188,40 @@ namespace xod {
     parsers: C,
   ): XmlChildrenParser<XmlChildrenParserRecordResult<C>> {
     return (nodes) => {
-      const children = _emptyParserResultGatherer(parsers);
+      const childElementsByName = Map.groupBy(
+        _selectElements(nodes),
+        (node) => node.name.raw,
+      );
+      const children = _emptyParserRecordResult(parsers);
 
-      for (const node of nodes) {
-        if (node.type === "element") {
-          if (isKeyOf(parsers, node.name.raw)) {
-            const p = parsers[node.name.raw];
-            const r = p(node);
-            if (r.success) {
-              children[node.name.raw].push(r.data as any); // TODO ):
-            }
+      for (const [name, elements] of childElementsByName.entries()) {
+        if (isKeyOf(parsers, name)) {
+          const p = parsers[name];
+          const r = p(elements);
+          if (r.success) {
+            children[name] = r.data as any; // TODO ):
+          } else {
+            return safeFail("failed to parse children", r.error);
           }
+        } else {
+          // TODO strict on children?
         }
       }
 
       return safeSuccess(children);
     };
+  }
+
+  function _selectElements(
+    nodes: ReadonlyArray<XML.XmlNode>,
+  ): ReadonlyArray<XML.XmlElement> {
+    return Array.from(function* () {
+      for (const node of nodes) {
+        if (node.type === "element") {
+          yield node;
+        }
+      }
+    }());
   }
 
   function ignoringChildren(): XmlChildrenParser<Empty> {
@@ -210,12 +279,6 @@ namespace xod {
       });
     };
   }
-
-  function _node() {
-    return zod.object<XML.XmlNode>({
-      type: zod.string(),
-    });
-  }
 }
 
 // RSS
@@ -252,14 +315,14 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     "item",
     zod.object(),
     {
-      title: xod.text(zod.string()),
-      link: xod.text(UrlSchema),
-      pubDate: xod.text(DateRfc2822Schema),
+      title: xod.one(xod.text(zod.string())),
+      link: xod.one(xod.text(UrlSchema)),
+      pubDate: xod.one(xod.text(DateRfc2822Schema)),
     },
     ({ children }) => ({
-      title: children.title.join(),
-      link: new URL(children.link.join()),
-      pubDate: new Date(children.pubDate.join()),
+      title: children.title,
+      link: children.link,
+      pubDate: children.pubDate,
     } satisfies RssItem),
   );
 
@@ -267,13 +330,13 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     "channel",
     zod.object(),
     {
-      title: xod.text(zod.string()),
-      lastBuildDate: xod.text(DateRfc2822Schema),
-      item: item,
+      title: xod.one(xod.text(zod.string())),
+      lastBuildDate: xod.one(xod.text(DateRfc2822Schema)),
+      item: xod.many(item),
     },
     ({ children }) => ({
-      title: children.title.join(),
-      lastBuildDate: new Date(children.lastBuildDate.join()),
+      title: children.title,
+      lastBuildDate: children.lastBuildDate,
       items: children.item,
     } satisfies RssChannel),
   );
@@ -281,17 +344,15 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
   const rss = xod.element(
     "rss",
     zod.object(),
-    { channel: channel },
+    { channel: xod.many(channel) },
     ({ children }) => ({ channels: children.channel } satisfies RssFeed),
   );
 
   return rss(doc.root);
 }
 
-// Main
-
-async function main() {
-  const req = new Request("https://devblogs.microsoft.com/dotnet/tag/c/feed/", {
+export async function readRssFeed(url: string | URL): Promise<RssFeed> {
+  const req = new Request(url, {
     method: "GET",
   });
 
@@ -302,7 +363,97 @@ async function main() {
 
   const doc = XML.parse(await res.text());
 
-  console.log(JSON.stringify(parseRssFeed(doc), null, 2));
+  const feed = parseRssFeed(doc);
+
+  if (!feed.success) {
+    throw new Error("failed to parse RSS feed", { cause: feed.error });
+  }
+
+  return feed.data;
 }
 
-await main();
+// Atom
+
+export interface AtomFeed {
+  title: string;
+  entries: ReadonlyArray<AtomEntry>;
+}
+
+export interface AtomEntry {
+  title: string;
+  link: URL;
+  updated: Date;
+  categories?: ReadonlySet<string>;
+}
+
+function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
+  const link = xod.element(
+    "link",
+    zod.object({ href: UrlSchema }),
+    {},
+    ({ attributes }) => attributes.href,
+  );
+
+  const category = xod.element(
+    "category",
+    zod.object({ term: zod.string() }),
+    {},
+    ({ attributes }) => attributes.term,
+  );
+
+  const entry = xod.element("entry", zod.object(), {
+    title: xod.one(xod.text(zod.string())),
+    id: xod.one(xod.text(UrlSchema)),
+    updated: xod.one(
+      xod.text(
+        zod.iso.datetime({ offset: true }).transform((value) =>
+          new Date(value)
+        ),
+      ),
+    ),
+    category: xod.many(category),
+  }, ({ children }) => ({
+    title: children.title,
+    link: children.id,
+    updated: children.updated,
+    categories: new Set(children.category),
+  } satisfies AtomEntry));
+
+  const feed = xod.element(
+    "feed",
+    zod.object(),
+    {
+      title: xod.one(xod.text(zod.string())),
+      entry: xod.many(entry),
+    },
+    (
+      { children },
+    ) => ({
+      title: children.title,
+      entries: children.entry,
+    } satisfies AtomFeed),
+  );
+
+  return feed(doc.root);
+}
+
+export async function readAtomFeed(url: string | URL): Promise<AtomFeed> {
+  const req = new Request(url, {
+    method: "GET",
+  });
+
+  const res = await fetch(req);
+
+  assert(res.ok);
+  assertExists(res.body);
+
+  const doc = XML.parse(await res.text());
+
+  const feed = parseAtomFeed(doc);
+
+  if (!feed.success) {
+    throw new Error("failed to parse Atom feed", { cause: feed.error });
+  }
+
+  return feed.data;
+}
