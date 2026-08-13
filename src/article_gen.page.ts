@@ -12,23 +12,92 @@ import { ArticlePageData } from "./_includes/types.ts";
 
 const ArticleSchema = zod.object({
   title: zod.string(),
-  date: zod.iso.datetime().transform((s) => new Date(s)),
-  link: zod.url().transform((s) => new URL(s)),
+  date: zod.instanceof(Temporal.ZonedDateTime),
+  link: zod.instanceof(URL),
   source: zod.string(),
 });
 
 type Article = zod.infer<typeof ArticleSchema>;
 
+const StoredArticleSchema = zod.object({
+  title: zod.string(),
+  date: zod.iso.datetime(),
+  link: zod.url(),
+  source: zod.string(),
+});
+
+const ArticleStorageSchema = zod.object({
+  articles: zod.array(StoredArticleSchema).readonly(),
+});
+
+const ArticleStorageCodec = zod.codec(
+  zod.string(),
+  ArticleStorageSchema,
+  {
+    decode: (text) => JSON.parse(text),
+    encode: (storage) => JSON.stringify(storage),
+  },
+);
+
+const StoredArticleCodec = zod.codec(
+  StoredArticleSchema,
+  ArticleSchema,
+  {
+    decode: (stored) => ({
+      title: stored.title,
+      date: Temporal.Instant.from(stored.date).toZonedDateTimeISO("UTC"),
+      link: new URL(stored.link),
+      source: stored.source,
+    }),
+    encode: (article) => ({
+      title: article.title,
+      date: article.date.toInstant().toString(),
+      link: article.link.toString(),
+      source: article.source,
+    }),
+  },
+);
+
 export default async function* (
   _data: Lume.Data,
   h: Lume.Helpers,
 ): AsyncGenerator<Partial<Lume.Data<ArticlePageData>>> {
-  const dateSlug = (date: Date) =>
-    date.toTemporalInstant()
-      .toZonedDateTimeISO("UTC")
-      .toPlainDate();
+  const articles = await readAllArticles();
 
+  yield* articles.filter((article) =>
+    article.date.year ===
+      Temporal.Now.plainDateISO().year
+  ).map((article) => {
+    const basename = h.slugify(article.title);
+    const url =
+      `/articles/${article.source}/${article.date.toPlainDate()}/${basename}/`;
+
+    return {
+      type: "article",
+      title: article.title,
+      date: new Date(article.date.epochMilliseconds),
+      source: article.source,
+      articleLink: article.link,
+    };
+  });
+
+  yield {
+    url: "/data.json",
+    content: ArticleStorageCodec.encode({
+      articles: articles.map((article) => StoredArticleCodec.encode(article)),
+    }),
+  };
+}
+
+async function readAllArticles() {
   const articles = await combine(
+    storage(
+      "https://garciat.com/lang-news/data.json",
+    ),
+    rss(
+      "clojure",
+      "https://clojure.org/feed.xml",
+    ),
     rss(
       "csharp",
       "https://devblogs.microsoft.com/dotnet/tag/csharp/feed/",
@@ -55,26 +124,29 @@ export default async function* (
     ),
     rss(
       "java",
-      // "https://feed.infoq.com/openjdk/news/",
-      "https://bsky.app/profile/jeptracker.bsky.social/rss",
-      {
-        mapper: (item) => ({
-          ...item,
-          title: item.description ?? "???",
-        }),
-      },
+      "https://feed.infoq.com/openjdk/news/",
     ),
+    // rss(
+    //   "java",
+    //   "https://bsky.app/profile/jeptracker.bsky.social/rss",
+    //   {
+    //     mapper: (item) => ({
+    //       ...item,
+    //       title: item.description ?? "???",
+    //     }),
+    //   },
+    // ),
     rss(
       "kotlin",
-      "https://blog.jetbrains.com/kotlin/feed/",
+      "https://blog.jetbrains.com/kotlin/category/releases/feed/",
     ),
-    atom(
-      "php",
-      "https://www.php.net/feed.atom",
-      {
-        filter: (entry) => entry?.categories?.has("releases") ?? false,
-      },
-    ),
+    // atom(
+    //   "php",
+    //   "https://www.php.net/feed.atom",
+    //   {
+    //     filter: (entry) => entry?.categories?.has("releases") ?? false,
+    //   },
+    // ),
     rss(
       "python",
       "https://blog.python.org/rss.xml",
@@ -99,37 +171,14 @@ export default async function* (
       "typescript",
       "https://devblogs.microsoft.com/typescript/feed/",
     ),
+    rss(
+      "zig",
+      "https://ziglang.org/news/index.xml",
+    ),
   );
 
-  yield* articles.map((article) => {
-    const basename = h.slugify(article.title);
-    const url = `/articles/${article.source}/${
-      dateSlug(article.date)
-    }/${basename}/`;
-
-    return {
-      basename,
-      url,
-      type: "article",
-      layout: "layouts/article.tsx",
-      title: article.title,
-      date: article.date,
-      source: article.source,
-      articleLink: article.link,
-    };
-  });
-
-  yield {
-    url: "/data.json",
-    content: JSON.stringify({
-      articles: articles.map((article) => ({
-        title: article.title,
-        date: article.date.toISOString(),
-        link: article.link,
-        source: article.source,
-      })),
-    }),
-  };
+  return dedupeBy(articles, (article) => article.link.toString())
+    .toSorted((a, b) => Temporal.ZonedDateTime.compare(a.date, b.date));
 }
 
 async function* rss(
@@ -149,7 +198,7 @@ async function* rss(
 
   const builder = (item: RssItem) => ({
     title: item.title,
-    date: item.pubDate,
+    date: item.pubDate.toTemporalInstant().toZonedDateTimeISO("UTC"),
     link: item.link,
     source: source,
   });
@@ -178,7 +227,7 @@ async function* atom(
     if (filter(entry)) {
       yield {
         title: entry.title,
-        date: entry.updated,
+        date: entry.updated.toTemporalInstant().toZonedDateTimeISO("UTC"),
         link: entry.link,
         source: source,
       };
@@ -186,10 +235,38 @@ async function* atom(
   }
 }
 
-async function combine<T>(...gens: AsyncGenerator<T>[]): Promise<T[]> {
+async function* storage(url: string): AsyncGenerator<Article> {
+  const res = await fetch(url);
+  const storage = ArticleStorageCodec.decode(await res.text());
+  console.log(`read ${storage.articles.length} articles from storage`);
+  return yield* storage.articles.map((stored) =>
+    StoredArticleCodec.decode(stored)
+  );
+}
+
+async function combine<T>(
+  ...gens: AsyncGenerator<T>[]
+): Promise<ReadonlyArray<T>> {
   const mux = new MuxAsyncIterator<T>();
   for (const gen of gens) {
     mux.add(gen);
   }
   return await Array.fromAsync(mux);
+}
+
+// because objects provide no meaningful keying
+type BasicEquatable =
+  | string
+  | number
+  | bigint
+  | boolean
+  | symbol
+  | null
+  | undefined;
+
+function dedupeBy<T, K extends BasicEquatable>(
+  items: ReadonlyArray<T>,
+  key: (value: T) => K,
+): ReadonlyArray<T> {
+  return Map.groupBy(items, key).values().map(([value]) => value).toArray();
 }

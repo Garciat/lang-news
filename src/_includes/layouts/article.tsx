@@ -1,20 +1,9 @@
-export const layout = "layouts/base.tsx";
+import { ArticlePageData } from "../types.ts";
 
 export default (
-  page: Lume.Data,
-  h: Lume.Helpers,
+  _page: Lume.Data<ArticlePageData>,
+  _h: Lume.Helpers,
 ) => {
-  const { children } = page;
-
-  return (
-    <article>
-      <header>
-        <h1>{page.title}</h1>
-      </header>
-
-      <section>
-        {children}
-      </section>
-    </article>
-  );
+  // deno-lint-ignore jsx-no-useless-fragment
+  return <></>;
 };

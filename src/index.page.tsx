@@ -30,12 +30,6 @@ export default (data: Lume.Data, _h: Lume.Helpers) => {
               {articles.map((article) => (
                 <article style={{ margin: "1em 0" }}>
                   <small>
-                    {article.date.toTemporalInstant().toZonedDateTimeISO(
-                      "UTC",
-                    )
-                      .toPlainDate().toString()}
-                  </small>{" "}
-                  <small>
                     <strong>{`[${article.source}]`}</strong>
                   </small>{" "}
                   <a href={article.articleLink.toString()}>{article.title}</a>
