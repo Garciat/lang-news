@@ -26,19 +26,6 @@ const StoredArticleSchema = zod.object({
   source: zod.string(),
 });
 
-const ArticleStorageSchema = zod.object({
-  articles: zod.array(StoredArticleSchema).readonly(),
-});
-
-const ArticleStorageCodec = zod.codec(
-  zod.string(),
-  ArticleStorageSchema,
-  {
-    decode: (text) => JSON.parse(text),
-    encode: (storage) => JSON.stringify(storage),
-  },
-);
-
 const StoredArticleCodec = zod.codec(
   StoredArticleSchema,
   ArticleSchema,
@@ -58,6 +45,20 @@ const StoredArticleCodec = zod.codec(
   },
 );
 
+const ArticleStorageSchema = zod.object({
+  version: zod.literal(1),
+  articles: zod.array(StoredArticleSchema).readonly(),
+});
+
+const ArticleStorageCodec = zod.codec(
+  zod.string(),
+  ArticleStorageSchema,
+  {
+    decode: (text) => JSON.parse(text),
+    encode: (storage) => JSON.stringify(storage),
+  },
+);
+
 export default async function* (
   _data: Lume.Data,
   h: Lume.Helpers,
@@ -67,23 +68,18 @@ export default async function* (
   yield* articles.filter((article) =>
     article.date.year ===
       Temporal.Now.plainDateISO().year
-  ).map((article) => {
-    const basename = h.slugify(article.title);
-    const url =
-      `/articles/${article.source}/${article.date.toPlainDate()}/${basename}/`;
-
-    return {
-      type: "article",
-      title: article.title,
-      date: new Date(article.date.epochMilliseconds),
-      source: article.source,
-      articleLink: article.link,
-    };
-  });
+  ).map((article) => ({
+    type: "article",
+    title: article.title,
+    date: new Date(article.date.epochMilliseconds),
+    source: article.source,
+    articleLink: article.link,
+  }));
 
   yield {
     url: "/data.json",
     content: ArticleStorageCodec.encode({
+      version: 1,
       articles: articles.map((article) => StoredArticleCodec.encode(article)),
     }),
   };
@@ -237,9 +233,20 @@ async function* atom(
 
 async function* storage(url: string): AsyncGenerator<Article> {
   const res = await fetch(url);
-  const storage = ArticleStorageCodec.decode(await res.text());
-  console.log(`read ${storage.articles.length} articles from storage`);
-  return yield* storage.articles.map((stored) =>
+  const body = await res.text();
+
+  const storage = ArticleStorageCodec.safeDecode(body);
+
+  if (!storage.success) {
+    console.warn(
+      `ignoring storage: failed to parse:\n${zod.prettifyError(storage.error)}`,
+    );
+    return;
+  }
+
+  console.log(`read ${storage.data.articles.length} articles from storage`);
+
+  return yield* storage.data.articles.map((stored) =>
     StoredArticleCodec.decode(stored)
   );
 }
