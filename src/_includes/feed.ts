@@ -1,6 +1,4 @@
-import { assert, assertExists } from "jsr:@std/assert";
 import * as XML from "jsr:@std/xml";
-
 import * as zod from "jsr:@zod/zod";
 
 // Generic
@@ -14,6 +12,10 @@ function isKeyOf<T extends object>(
   return key in obj;
 }
 
+function typedKeys<T extends object>(obj: T): ReadonlyArray<keyof T> {
+  return Object.keys(obj).map((key) => (key as keyof T));
+}
+
 // Parsing
 
 // deno-lint-ignore no-namespace
@@ -22,11 +24,11 @@ namespace xod {
     | { success: true; data: T }
     | { success: false; error: Error };
 
-  function safeSuccess<T>(data: T): Safe<T> {
+  export function safeSuccess<T>(data: T): Safe<T> {
     return { success: true, data };
   }
 
-  function safeFail<T>(msg: string, cause?: Error): Safe<T> {
+  export function safeFail<T>(msg: string, cause?: Error): Safe<T> {
     return { success: false, error: new Error(msg, { cause }) };
   }
 
@@ -139,7 +141,7 @@ namespace xod {
     parser: ElementParser<T>,
   ): XmlChildParser<ReadonlyArray<T>> {
     return (elements) => {
-      if (elements.length === 1) {
+      if (elements.length === 0) {
         return safeFail("expected at least one child of specific type");
       }
 
@@ -209,17 +211,17 @@ namespace xod {
       );
       const children = _emptyParserRecordResult(parsers);
 
-      for (const [name, elements] of childElementsByName.entries()) {
-        if (isKeyOf(parsers, name)) {
-          const p = parsers[name];
-          const r = p(elements);
-          if (r.success) {
-            children[name] = r.data as any; // TODO ):
-          } else {
-            return safeFail("failed to parse children", r.error);
-          }
+      for (const key of typedKeys(parsers)) {
+        const parser = parsers[key];
+        const elements = childElementsByName.get(key as string) ?? [];
+        const parse = parser(elements);
+        if (parse.success) {
+          children[key] = parse.data as any; // TODO ):
         } else {
-          // TODO strict on children?
+          return safeFail(
+            `failed to parse children for field: ${String(key)}`,
+            parse.error,
+          );
         }
       }
 
@@ -296,6 +298,26 @@ namespace xod {
   }
 }
 
+// Common
+
+const DateRfc2822Schema = zod
+  .string()
+  .refine(
+    (value) => !Number.isNaN(Date.parse(value)),
+    {
+      message: "Invalid date",
+    },
+  )
+  .transform((value) => new Date(value).toTemporalInstant());
+
+const UrlSchema = zod
+  .url()
+  .transform((value) => new URL(value));
+
+const OffsetDateTimeSchema = zod.iso
+  .datetime({ offset: true })
+  .transform((value) => Temporal.Instant.from(value));
+
 // RSS
 
 export interface RssFeed {
@@ -304,27 +326,16 @@ export interface RssFeed {
 
 export interface RssChannel {
   title: string;
-  lastBuildDate: Date;
+  lastBuildDate: Temporal.Instant;
   items: ReadonlyArray<RssItem>;
 }
 
 export interface RssItem {
   title: string;
   link: URL;
-  pubDate: Date;
+  pubDate: Temporal.Instant;
   description?: string;
 }
-
-const DateRfc2822Schema = zod
-  .string()
-  .refine((value) => !Number.isNaN(Date.parse(value)), {
-    message: "Invalid date",
-  })
-  .transform((value) => new Date(value));
-
-const UrlSchema = zod
-  .url()
-  .transform((value) => new URL(value));
 
 function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
   const item = xod.element(
@@ -349,12 +360,12 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     zod.object(),
     {
       title: xod.one(xod.text(zod.string())),
-      lastBuildDate: xod.one(xod.text(DateRfc2822Schema)),
+      lastBuildDate: xod.optional(xod.text(DateRfc2822Schema)),
       item: xod.many(item),
     },
     ({ children }) => ({
       title: children.title,
-      lastBuildDate: children.lastBuildDate,
+      lastBuildDate: children.lastBuildDate ?? Temporal.Now.instant(),
       items: children.item,
     } satisfies RssChannel),
   );
@@ -362,45 +373,49 @@ function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
   const rss = xod.element(
     "rss",
     zod.object(),
-    { channel: xod.many(channel) },
+    { channel: xod.some(channel) },
     ({ children }) => ({ channels: children.channel } satisfies RssFeed),
   );
 
   return rss(doc.root);
 }
 
-export async function readRssFeed(url: string | URL): Promise<RssFeed> {
+export async function readRssFeed(
+  url: string | URL,
+): Promise<xod.Safe<RssFeed>> {
   const req = new Request(url, {
     method: "GET",
   });
 
   const res = await fetch(req);
 
-  assert(res.ok);
-  assertExists(res.body);
+  if (!res.ok || !res.body) {
+    return xod.safeFail(`failed to fetch URL: ${res.status} ${res.statusText}`);
+  }
 
   const doc = XML.parse(await res.text());
 
   const feed = parseRssFeed(doc);
 
   if (!feed.success) {
-    throw new Error("failed to parse RSS feed", { cause: feed.error });
+    return xod.safeFail("failed to parse RSS feed", feed.error);
   }
 
-  return feed.data;
+  return feed;
 }
 
 // Atom
 
 export interface AtomFeed {
   title: string;
+  updated: Temporal.Instant;
   entries: ReadonlyArray<AtomEntry>;
 }
 
 export interface AtomEntry {
   title: string;
   link: URL;
-  updated: Date;
+  updated: Temporal.Instant;
   categories?: ReadonlySet<string>;
 }
 
@@ -423,13 +438,7 @@ function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
     title: xod.one(xod.text(zod.string())),
     id: xod.one(xod.text(UrlSchema)),
     link: xod.many(link),
-    updated: xod.one(
-      xod.text(
-        zod.iso.datetime({ offset: true }).transform((value) =>
-          new Date(value)
-        ),
-      ),
-    ),
+    updated: xod.one(xod.text(OffsetDateTimeSchema)),
     category: xod.many(category),
   }, ({ children }) => ({
     title: children.title,
@@ -444,12 +453,14 @@ function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
     zod.object(),
     {
       title: xod.one(xod.text(zod.string())),
+      updated: xod.one(xod.text(OffsetDateTimeSchema)),
       entry: xod.many(entry),
     },
     (
       { children },
     ) => ({
       title: children.title,
+      updated: children.updated,
       entries: children.entry,
     } satisfies AtomFeed),
   );
@@ -457,23 +468,26 @@ function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
   return feed(doc.root);
 }
 
-export async function readAtomFeed(url: string | URL): Promise<AtomFeed> {
+export async function readAtomFeed(
+  url: string | URL,
+): Promise<xod.Safe<AtomFeed>> {
   const req = new Request(url, {
     method: "GET",
   });
 
   const res = await fetch(req);
 
-  assert(res.ok);
-  assertExists(res.body);
+  if (!res.ok || !res.body) {
+    return xod.safeFail(`failed to fetch URL: ${res.status} ${res.statusText}`);
+  }
 
   const doc = XML.parse(await res.text());
 
   const feed = parseAtomFeed(doc);
 
   if (!feed.success) {
-    throw new Error("failed to parse Atom feed", { cause: feed.error });
+    return xod.safeFail("failed to parse RSS feed", feed.error);
   }
 
-  return feed.data;
+  return feed;
 }

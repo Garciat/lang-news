@@ -1,53 +1,64 @@
-import { MuxAsyncIterator } from "jsr:@std/async/mux-async-iterator";
-
 import * as zod from "jsr:@zod/zod";
 
-import {
-  AtomEntry,
-  readAtomFeed,
-  readRssFeed,
-  RssItem,
-} from "./_includes/feed.ts";
+import { readAtomFeed, readRssFeed } from "./_includes/feed.ts";
 import { ArticlePageData } from "./_includes/types.ts";
+
+const UtcDateTimeCodec = zod.codec(
+  zod.iso.datetime(),
+  zod.instanceof(Temporal.Instant),
+  {
+    decode: (text) => Temporal.Instant.from(text),
+    encode: (dt) => dt.toString(),
+  },
+);
+
+const UrlCodec = zod.codec(
+  zod.url(),
+  zod.instanceof(URL),
+  {
+    decode: (text) => new URL(text),
+    encode: (url) => url.toString(),
+  },
+);
 
 const ArticleSchema = zod.object({
   title: zod.string(),
-  date: zod.instanceof(Temporal.ZonedDateTime),
-  link: zod.instanceof(URL),
+  date: UtcDateTimeCodec,
+  link: UrlCodec,
   source: zod.string(),
 });
 
 type Article = zod.infer<typeof ArticleSchema>;
 
-const StoredArticleSchema = zod.object({
-  title: zod.string(),
-  date: zod.iso.datetime(),
-  link: zod.url(),
-  source: zod.string(),
+const ArticleSourceSchema = zod.object({
+  name: zod.string(),
+  url: zod.url(),
+  kind: zod.literal(["rss", "atom"]),
 });
 
-const StoredArticleCodec = zod.codec(
-  StoredArticleSchema,
-  ArticleSchema,
-  {
-    decode: (stored) => ({
-      title: stored.title,
-      date: Temporal.Instant.from(stored.date).toZonedDateTimeISO("UTC"),
-      link: new URL(stored.link),
-      source: stored.source,
-    }),
-    encode: (article) => ({
-      title: article.title,
-      date: article.date.toInstant().toString(),
-      link: article.link.toString(),
-      source: article.source,
-    }),
-  },
-);
+type ArticleSource = zod.infer<typeof ArticleSourceSchema>;
+
+const ArticleSourceResultSchema = zod.object({
+  updatedAt: UtcDateTimeCodec,
+  articles: zod.array(ArticleSchema).readonly(),
+  lastFetchError: zod.optional(zod.string()),
+});
+
+type ArticleSourceResult = zod.infer<typeof ArticleSourceResultSchema>;
+
+const ArticlesFetchResultSchema = zod.object({
+  fetchedAt: UtcDateTimeCodec,
+  sources: zod.array(zod.object({
+    source: ArticleSourceSchema,
+    result: ArticleSourceResultSchema,
+  })).readonly(),
+});
+
+type ArticlesFetchResult = zod.infer<typeof ArticlesFetchResultSchema>;
 
 const ArticleStorageSchema = zod.object({
-  version: zod.literal(1),
-  articles: zod.array(StoredArticleSchema).readonly(),
+  version: zod.literal(2),
+  result: ArticlesFetchResultSchema,
 });
 
 const ArticleStorageCodec = zod.codec(
@@ -61,177 +72,255 @@ const ArticleStorageCodec = zod.codec(
 
 export default async function* (
   _data: Lume.Data,
-  h: Lume.Helpers,
+  _h: Lume.Helpers,
 ): AsyncGenerator<Partial<Lume.Data<ArticlePageData>>> {
-  const articles = await readAllArticles();
+  const storage = await fetchFromStorage(
+    "https://garciat.com/lang-news/data.json",
+  );
 
-  yield* articles.filter((article) =>
-    article.date.year ===
-      Temporal.Now.plainDateISO().year
-  ).map((article) => ({
-    type: "article",
-    title: article.title,
-    date: new Date(article.date.epochMilliseconds),
-    source: article.source,
-    articleLink: article.link,
-  }));
+  const current = await fetchFromSources(sources);
+
+  const result = mergeFetchResults(current, storage);
+
+  for (const source of result.sources) {
+    for (const article of source.result.articles) {
+      if (
+        article.date.toZonedDateTimeISO("UTC").year ===
+          Temporal.Now.plainDateISO().year
+      ) {
+        yield {
+          type: "article",
+          title: article.title,
+          date: new Date(article.date.epochMilliseconds),
+          source: article.source,
+          articleLink: article.link,
+        };
+      }
+    }
+  }
 
   yield {
     url: "/data.json",
     content: ArticleStorageCodec.encode({
-      version: 1,
-      articles: articles.map((article) => StoredArticleCodec.encode(article)),
+      version: 2,
+      result: result,
     }),
   };
 }
 
-async function readAllArticles() {
-  const articles = await combine(
-    storage(
-      "https://garciat.com/lang-news/data.json",
-    ),
-    rss(
-      "clojure",
-      "https://clojure.org/feed.xml",
-    ),
-    rss(
-      "csharp",
-      "https://devblogs.microsoft.com/dotnet/tag/csharp/feed/",
-    ),
-    atom(
-      "dlang",
-      "https://blog.dlang.org/feed.xml",
-    ),
-    atom(
-      "elixir",
-      "https://elixir-lang.org/atom.xml",
-    ),
-    atom(
-      "erlang",
-      "https://www.erlang.org/blog.xml",
-    ),
-    atom(
-      "golang",
-      "https://go.dev/blog/feed.atom",
-    ),
-    atom(
-      "haskell",
-      "https://blog.haskell.org/atom.xml",
-    ),
-    rss(
-      "java",
-      "https://feed.infoq.com/openjdk/news/",
-    ),
-    // rss(
-    //   "java",
-    //   "https://bsky.app/profile/jeptracker.bsky.social/rss",
-    //   {
-    //     mapper: (item) => ({
-    //       ...item,
-    //       title: item.description ?? "???",
-    //     }),
-    //   },
-    // ),
-    rss(
-      "kotlin",
-      "https://blog.jetbrains.com/kotlin/category/releases/feed/",
-    ),
-    // atom(
-    //   "php",
-    //   "https://www.php.net/feed.atom",
-    //   {
-    //     filter: (entry) => entry?.categories?.has("releases") ?? false,
-    //   },
-    // ),
-    rss(
-      "python",
-      "https://blog.python.org/rss.xml",
-    ),
-    rss(
-      "ruby",
-      "https://www.ruby-lang.org/en/feeds/news.rss",
-    ),
-    atom(
-      "rust",
-      "https://blog.rust-lang.org/feed.xml",
-    ),
-    atom(
-      "scala",
-      "https://www.scala-lang.org/feed/index.xml",
-    ),
-    atom(
-      "swift",
-      "https://www.swift.org/atom.xml",
-    ),
-    rss(
-      "typescript",
-      "https://devblogs.microsoft.com/typescript/feed/",
-    ),
-    rss(
-      "zig",
-      "https://ziglang.org/news/index.xml",
-    ),
+function mergeFetchResults(
+  current: ArticlesFetchResult,
+  storage: ArticlesFetchResult | undefined,
+): ArticlesFetchResult {
+  const storageBySourceName = new Map(
+    Array.from(function* () {
+      for (const source of storage?.sources ?? []) {
+        yield [source.source.name, source];
+      }
+    }()),
   );
 
-  return dedupeBy(articles, (article) => article.link.toString())
-    .toSorted((a, b) => Temporal.ZonedDateTime.compare(a.date, b.date));
-}
+  return {
+    fetchedAt: current.fetchedAt,
+    sources: current.sources.map((source) => {
+      const stored = storageBySourceName.get(source.source.name);
+      if (stored === undefined) {
+        return source;
+      }
 
-async function* rss(
-  source: string,
-  url: string,
-  options?: { mapper?: (item: RssItem) => RssItem },
-): AsyncGenerator<Article> {
-  const feed = await readRssFeed(
-    url,
-  );
+      if (stored.source.url !== source.source.url) {
+        return source;
+      }
 
-  console.log(
-    `[${source}] fetched ${feed.channels[0].items.length} articles`,
-  );
-
-  const mapper = options?.mapper ?? ((item) => item);
-
-  const builder = (item: RssItem) => ({
-    title: item.title,
-    date: item.pubDate.toTemporalInstant().toZonedDateTimeISO("UTC"),
-    link: item.link,
-    source: source,
-  });
-
-  for (const item of feed.channels[0].items) {
-    yield builder(mapper(item));
-  }
-}
-
-async function* atom(
-  source: string,
-  url: string,
-  options?: { filter?: (entry: AtomEntry) => boolean },
-): AsyncGenerator<Article> {
-  const feed = await readAtomFeed(
-    url,
-  );
-
-  console.log(
-    `[${source}] fetched ${feed.entries.length} articles`,
-  );
-
-  const filter = options?.filter ?? (() => true);
-
-  for (const entry of feed.entries) {
-    if (filter(entry)) {
-      yield {
-        title: entry.title,
-        date: entry.updated.toTemporalInstant().toZonedDateTimeISO("UTC"),
-        link: entry.link,
-        source: source,
+      return {
+        source: source.source,
+        result: {
+          updatedAt: source.result.updatedAt,
+          lastFetchError: source.result.lastFetchError,
+          articles: dedupeBy(
+            [...source.result.articles, ...stored.result.articles],
+            (article) => article.link.toString(),
+          ),
+        },
       };
-    }
-  }
+    }),
+  };
 }
 
-async function* storage(url: string): AsyncGenerator<Article> {
+const sources: ReadonlyArray<ArticleSource> = [
+  {
+    name: "clojure",
+    url: "https://clojure.org/feed.xml",
+    kind: "rss",
+  },
+  {
+    name: "csharp",
+    url: "https://devblogs.microsoft.com/dotnet/tag/csharp/feed/",
+    kind: "rss",
+  },
+  {
+    name: "dlang",
+    url: "https://blog.dlang.org/feed.xml",
+    kind: "atom",
+  },
+  {
+    name: "elixir",
+    url: "https://elixir-lang.org/atom.xml",
+    kind: "atom",
+  },
+  {
+    name: "erlang",
+    url: "https://www.erlang.org/blog.xml",
+    kind: "atom",
+  },
+  {
+    name: "golang",
+    url: "https://go.dev/blog/feed.atom",
+    kind: "atom",
+  },
+  {
+    name: "haskell",
+    url: "https://blog.haskell.org/atom.xml",
+    kind: "atom",
+  },
+  {
+    name: "java",
+    url: "https://feed.infoq.com/openjdk/news/",
+    kind: "rss",
+  },
+  {
+    name: "kotlin",
+    url: "https://blog.jetbrains.com/kotlin/category/releases/feed/",
+    kind: "rss",
+  },
+  {
+    name: "python",
+    url: "https://blog.python.org/rss.xml",
+    kind: "rss",
+  },
+  {
+    name: "ruby",
+    url: "https://www.ruby-lang.org/en/feeds/news.rss",
+    kind: "rss",
+  },
+  {
+    name: "rust",
+    url: "https://blog.rust-lang.org/feed.xml",
+    kind: "atom",
+  },
+  {
+    name: "scala",
+    url: "https://www.scala-lang.org/feed/index.xml",
+    kind: "atom",
+  },
+  {
+    name: "swift",
+    url: "https://www.swift.org/atom.xml",
+    kind: "atom",
+  },
+  {
+    name: "typescript",
+    url: "https://devblogs.microsoft.com/typescript/feed/",
+    kind: "rss",
+  },
+  {
+    name: "zig",
+    url: "https://ziglang.org/news/index.xml",
+    kind: "rss",
+  },
+];
+
+async function fetchFromSources(
+  sources: ReadonlyArray<ArticleSource>,
+): Promise<ArticlesFetchResult> {
+  const results = await Promise.all(
+    sources.map(async (source) => {
+      switch (source.kind) {
+        case "rss":
+          return {
+            source,
+            result: await rss(source.name, source.url),
+          };
+        case "atom":
+          return {
+            source,
+            result: await atom(source.name, source.url),
+          };
+      }
+    }),
+  );
+
+  return {
+    fetchedAt: Temporal.Now.instant(),
+    sources: results,
+  };
+}
+
+async function rss(
+  source: string,
+  url: string,
+): Promise<ArticleSourceResult> {
+  const feed = await readRssFeed(url);
+
+  if (!feed.success) {
+    console.warn(`[${source}] failed to fetch`, feed.error);
+    return {
+      updatedAt: Temporal.Now.instant(),
+      articles: [],
+      lastFetchError: feed.error.message,
+    };
+  }
+
+  const channel = feed.data.channels[0];
+
+  console.log(
+    `[${source}] fetched ${channel.items.length} articles`,
+  );
+
+  return {
+    updatedAt: channel.lastBuildDate,
+    articles: channel.items.map((item) => ({
+      title: item.title,
+      date: item.pubDate,
+      link: item.link,
+      source: source,
+    })),
+  };
+}
+
+async function atom(
+  source: string,
+  url: string,
+): Promise<ArticleSourceResult> {
+  const feed = await readAtomFeed(url);
+
+  if (!feed.success) {
+    console.warn(`[${source}] failed to fetch`, feed.error);
+    return {
+      updatedAt: Temporal.Now.instant(),
+      articles: [],
+      lastFetchError: feed.error.message,
+    };
+  }
+
+  console.log(
+    `[${source}] fetched ${feed.data.entries.length} articles`,
+  );
+
+  return {
+    updatedAt: feed.data.updated,
+    articles: feed.data.entries.map((entry) => ({
+      title: entry.title,
+      date: entry.updated,
+      link: entry.link,
+      source: source,
+    })),
+  };
+}
+
+async function fetchFromStorage(
+  url: string,
+): Promise<ArticlesFetchResult | undefined> {
   const res = await fetch(url);
   const body = await res.text();
 
@@ -241,24 +330,14 @@ async function* storage(url: string): AsyncGenerator<Article> {
     console.warn(
       `ignoring storage: failed to parse:\n${zod.prettifyError(storage.error)}`,
     );
-    return;
+    return undefined;
   }
 
-  console.log(`read ${storage.data.articles.length} articles from storage`);
-
-  return yield* storage.data.articles.map((stored) =>
-    StoredArticleCodec.decode(stored)
+  console.log(
+    `read articles from storage dated: ${storage.data.result.fetchedAt.toString()}`,
   );
-}
 
-async function combine<T>(
-  ...gens: AsyncGenerator<T>[]
-): Promise<ReadonlyArray<T>> {
-  const mux = new MuxAsyncIterator<T>();
-  for (const gen of gens) {
-    mux.add(gen);
-  }
-  return await Array.fromAsync(mux);
+  return storage.data.result;
 }
 
 // because objects provide no meaningful keying
