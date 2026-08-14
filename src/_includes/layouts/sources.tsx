@@ -20,13 +20,16 @@ export default (data: Lume.Data<SourcesPageData>, h: Lume.Helpers) => {
         {result.sources.map((source) => (
           <p>
             <strong>{`[${source.source.name}]`}</strong>{" "}
-            <a href={source.source.url}>{source.source.url}</a>{" "}
+            <a href={source.source.url}>{source.source.url}</a>
+            {" — "}
             <small>
               {`Last updated: ${source.result.updatedAt.toString()}`}
             </small>
+            {" — "}
+            <small>{`Articles: ${source.result.articles.length}`}</small>
             {source.result.lastFetchError && (
               <>
-                {" "}
+                {" — "}
                 <small>
                   <strong>
                     {`🔴 ${source.result.lastFetchError}`}
