@@ -1,79 +1,19 @@
 import * as zod from "jsr:@zod/zod";
 
 import { readAtomFeed, readRssFeed } from "./_includes/feed.ts";
-import { ArticlePageData } from "./_includes/types.ts";
-
-const UtcDateTimeCodec = zod.codec(
-  zod.iso.datetime(),
-  zod.instanceof(Temporal.Instant),
-  {
-    decode: (text) => Temporal.Instant.from(text),
-    encode: (dt) => dt.toString(),
-  },
-);
-
-const UrlCodec = zod.codec(
-  zod.url(),
-  zod.instanceof(URL),
-  {
-    decode: (text) => new URL(text),
-    encode: (url) => url.toString(),
-  },
-);
-
-const ArticleSchema = zod.object({
-  title: zod.string(),
-  date: UtcDateTimeCodec,
-  link: UrlCodec,
-  source: zod.string(),
-});
-
-type Article = zod.infer<typeof ArticleSchema>;
-
-const ArticleSourceSchema = zod.object({
-  name: zod.string(),
-  url: zod.url(),
-  kind: zod.literal(["rss", "atom"]),
-});
-
-type ArticleSource = zod.infer<typeof ArticleSourceSchema>;
-
-const ArticleSourceResultSchema = zod.object({
-  updatedAt: UtcDateTimeCodec,
-  articles: zod.array(ArticleSchema).readonly(),
-  lastFetchError: zod.optional(zod.string()),
-});
-
-type ArticleSourceResult = zod.infer<typeof ArticleSourceResultSchema>;
-
-const ArticlesFetchResultSchema = zod.object({
-  fetchedAt: UtcDateTimeCodec,
-  sources: zod.array(zod.object({
-    source: ArticleSourceSchema,
-    result: ArticleSourceResultSchema,
-  })).readonly(),
-});
-
-type ArticlesFetchResult = zod.infer<typeof ArticlesFetchResultSchema>;
-
-const ArticleStorageSchema = zod.object({
-  version: zod.literal(2),
-  result: ArticlesFetchResultSchema,
-});
-
-const ArticleStorageCodec = zod.codec(
-  zod.string(),
-  ArticleStorageSchema,
-  {
-    decode: (text) => JSON.parse(text),
-    encode: (storage) => JSON.stringify(storage),
-  },
-);
+import {
+  ArticlePageData,
+  ArticlesFetchResult,
+  ArticleSource,
+  ArticleSourceResult,
+  ArticleStorageCodec,
+  SourcesPageData,
+} from "./_includes/types.ts";
 
 export default async function* (
   _data: Lume.Data,
   _h: Lume.Helpers,
-): AsyncGenerator<Partial<Lume.Data<ArticlePageData>>> {
+): AsyncGenerator<Partial<Lume.Data>> {
   const storage = await fetchFromStorage(
     "https://garciat.com/lang-news/data.json",
   );
@@ -94,7 +34,7 @@ export default async function* (
           date: new Date(article.date.epochMilliseconds),
           source: article.source,
           articleLink: article.link,
-        };
+        } satisfies Partial<Lume.Data> & ArticlePageData;
       }
     }
   }
@@ -106,6 +46,12 @@ export default async function* (
       result: result,
     }),
   };
+
+  yield {
+    url: "/sources/",
+    layout: "layouts/sources.tsx",
+    result: result,
+  } satisfies Partial<Lume.Data> & SourcesPageData;
 }
 
 function mergeFetchResults(

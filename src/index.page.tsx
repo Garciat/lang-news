@@ -4,7 +4,7 @@ export const layout = "layouts/base.tsx";
 
 export const title = "Programming Language News";
 
-export default (data: Lume.Data, _h: Lume.Helpers) => {
+export default (data: Lume.Data, h: Lume.Helpers) => {
   const { search } = data;
 
   const articles = search.pages<Lume.Data<ArticlePageData>>(
@@ -17,6 +17,10 @@ export default (data: Lume.Data, _h: Lume.Helpers) => {
       <main>
         <header>
           <h1>Programming Language News</h1>
+          <p>Generated at {Temporal.Now.instant().toString()}</p>
+          <p>
+            <a href={h.url("/sources/")}>View sources</a>
+          </p>
         </header>
         {Map.groupBy(articles, (x) =>
           x.date.toTemporalInstant().toZonedDateTimeISO("UTC").toPlainDate()
