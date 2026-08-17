@@ -25,7 +25,7 @@ const ArticleSchema = zod.object({
   source: zod.string(),
 });
 
-type Article = zod.infer<typeof ArticleSchema>;
+export type Article = zod.infer<typeof ArticleSchema>;
 
 const ArticleSourceSchema = zod.object({
   name: zod.string(),

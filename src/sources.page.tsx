@@ -3,37 +3,40 @@ export const layout = "layouts/base.tsx";
 export const title = "Sources - Programming Language News";
 
 export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
+  const sources = feeds.sources
+    .toSorted((a, b) => a.source.name.localeCompare(b.source.name));
+
   return (
     <>
       <main>
         <header>
           <h1>Programming Language News</h1>
-          <p>Fetched at {feeds.fetchedAt.toString()}</p>
           <p>
             <a href={h.url("/")}>Go back</a>
           </p>
+          <p>Fetched at {feeds.fetchedAt.toString()}</p>
         </header>
-        {feeds.sources.map((source) => (
-          <p>
-            <strong>{`[${source.source.name}]`}</strong>{" "}
-            <a href={source.source.url}>{source.source.url}</a>
-            {" — "}
-            <small>
+        {sources.map((source) => (
+          <div style={{ margin: "1em 0" }}>
+            <header>
+              <strong>{source.source.name}</strong>
+              {" "}
+            </header>
+            <div>
+              <a href={source.source.url}>{source.source.url}</a>
+            </div>
+            <div>
               {`Last updated: ${source.result.updatedAt.toString()}`}
-            </small>
-            {" — "}
-            <small>{`Articles: ${source.result.articles.length}`}</small>
+            </div>
+            <div>
+              {`Articles: ${source.result.articles.length}`}
+            </div>
             {source.result.lastFetchError && (
-              <>
-                {" — "}
-                <small>
-                  <strong>
-                    {`🔴 ${source.result.lastFetchError}`}
-                  </strong>
-                </small>
-              </>
+              <div>
+                🔴 Last error: <code>{source.result.lastFetchError}</code>
+              </div>
             )}
-          </p>
+          </div>
         ))}
       </main>
     </>
