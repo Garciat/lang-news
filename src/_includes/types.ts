@@ -66,13 +66,3 @@ export const ArticleStorageCodec = zod.codec(
     encode: (storage) => JSON.stringify(storage),
   },
 );
-
-export interface ArticlePageData {
-  title: string;
-  source: string;
-  articleLink: URL;
-}
-
-export interface SourcesPageData {
-  result: ArticlesFetchResult;
-}

@@ -1,57 +1,23 @@
 import * as zod from "jsr:@zod/zod";
 
-import { readAtomFeed, readRssFeed } from "./_includes/feed.ts";
+import { readAtomFeed, readRssFeed } from "../_includes/feed.ts";
 import {
-  ArticlePageData,
   ArticlesFetchResult,
   ArticleSource,
   ArticleSourceResult,
   ArticleStorageCodec,
-  SourcesPageData,
-} from "./_includes/types.ts";
+} from "../_includes/types.ts";
 
-export default async function* (
-  _data: Lume.Data,
-  _h: Lume.Helpers,
-): AsyncGenerator<Partial<Lume.Data>> {
+export async function readFeeds(
+  sources: ReadonlyArray<ArticleSource>,
+): Promise<ArticlesFetchResult> {
   const storage = await fetchFromStorage(
     "https://garciat.com/lang-news/data.json",
   );
 
   const current = await fetchFromSources(sources);
 
-  const result = mergeFetchResults(current, storage);
-
-  for (const source of result.sources) {
-    for (const article of source.result.articles) {
-      if (
-        article.date.toZonedDateTimeISO("UTC").year ===
-          Temporal.Now.plainDateISO().year
-      ) {
-        yield {
-          type: "article",
-          title: article.title,
-          date: new Date(article.date.epochMilliseconds),
-          source: article.source,
-          articleLink: article.link,
-        } satisfies Partial<Lume.Data> & ArticlePageData;
-      }
-    }
-  }
-
-  yield {
-    url: "/data.json",
-    content: ArticleStorageCodec.encode({
-      version: 2,
-      result: result,
-    }),
-  };
-
-  yield {
-    url: "/sources/",
-    layout: "layouts/sources.tsx",
-    result: result,
-  } satisfies Partial<Lume.Data> & SourcesPageData;
+  return mergeFetchResults(current, storage);
 }
 
 function mergeFetchResults(
@@ -92,89 +58,6 @@ function mergeFetchResults(
     }),
   };
 }
-
-const sources: ReadonlyArray<ArticleSource> = [
-  {
-    name: "clojure",
-    url: "https://clojure.org/feed.xml",
-    kind: "rss",
-  },
-  {
-    name: "csharp",
-    url: "https://devblogs.microsoft.com/dotnet/tag/csharp/feed/",
-    kind: "rss",
-  },
-  {
-    name: "dlang",
-    url: "https://blog.dlang.org/feed.xml",
-    kind: "atom",
-  },
-  {
-    name: "elixir",
-    url: "https://elixir-lang.org/atom.xml",
-    kind: "atom",
-  },
-  {
-    name: "erlang",
-    url: "https://www.erlang.org/blog.xml",
-    kind: "atom",
-  },
-  {
-    name: "golang",
-    url: "https://go.dev/blog/feed.atom",
-    kind: "atom",
-  },
-  {
-    name: "haskell",
-    url: "https://blog.haskell.org/atom.xml",
-    kind: "atom",
-  },
-  {
-    name: "java",
-    url: "https://feed.infoq.com/openjdk/news/",
-    kind: "rss",
-  },
-  {
-    name: "kotlin",
-    url: "https://blog.jetbrains.com/kotlin/category/releases/feed/",
-    kind: "rss",
-  },
-  {
-    name: "python",
-    url: "https://blog.python.org/rss.xml",
-    kind: "rss",
-  },
-  {
-    name: "ruby",
-    url: "https://www.ruby-lang.org/en/feeds/news.rss",
-    kind: "rss",
-  },
-  {
-    name: "rust",
-    url: "https://blog.rust-lang.org/feed.xml",
-    kind: "atom",
-  },
-  {
-    name: "scala",
-    url: "https://www.scala-lang.org/feed/index.xml",
-    kind: "atom",
-  },
-  {
-    name: "swift",
-    url: "https://www.swift.org/atom.xml",
-    kind: "atom",
-  },
-  {
-    name: "typescript",
-    url: "https://devblogs.microsoft.com/typescript/feed/",
-    kind: "rss",
-  },
-  {
-    name: "zig",
-    url: "https://ziglang.org/news/index.xml",
-    kind: "rss",
-  },
-];
 
 async function fetchFromSources(
   sources: ReadonlyArray<ArticleSource>,

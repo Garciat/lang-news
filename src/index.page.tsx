@@ -1,16 +1,14 @@
-import { ArticlePageData } from "./_includes/types.ts";
-
 export const layout = "layouts/base.tsx";
 
 export const title = "Programming Language News";
 
-export default (data: Lume.Data, h: Lume.Helpers) => {
-  const { search } = data;
-
-  const articles = search.pages<Lume.Data<ArticlePageData>>(
-    "type=article",
-    "date=desc",
-  );
+export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
+  const articles = feeds.sources.flatMap((source) => source.result.articles)
+    .filter((article) =>
+      article.date.toZonedDateTimeISO("UTC").year ==
+        Temporal.Now.zonedDateTimeISO("UTC").year
+    )
+    .toSorted((a, b) => Temporal.Instant.compare(b.date, a.date));
 
   return (
     <>
@@ -22,25 +20,24 @@ export default (data: Lume.Data, h: Lume.Helpers) => {
             <a href={h.url("/sources/")}>View sources</a>
           </p>
         </header>
-        {Map.groupBy(articles, (x) =>
-          x.date.toTemporalInstant().toZonedDateTimeISO("UTC").toPlainDate()
+        {Map.groupBy(articles, (article) =>
+          article.date.toZonedDateTimeISO("UTC").toPlainDate()
             .toPlainYearMonth().toString()).entries().map((
-            [date, articles],
+            [yearMonth, articles],
           ) => (
             <section>
               <header>
-                <h3>{date}</h3>
+                <h3>{yearMonth}</h3>
               </header>
               {articles.map((article) => (
                 <article style={{ margin: "1em 0" }}>
                   <small>
                     <strong>{`[${article.source}]`}</strong>
                   </small>{" "}
-                  <a href={article.articleLink.toString()}>{article.title}</a>
-                  {" "}
+                  <a href={article.link.toString()}>{article.title}</a>{" "}
                   <small>
                     <time style={{ "white-space": "nowrap" }}>
-                      {article.date.toTemporalInstant().toZonedDateTimeISO(
+                      {article.date.toZonedDateTimeISO(
                         "UTC",
                       ).toPlainDate().toString()}
                     </time>
