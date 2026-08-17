@@ -1,6 +1,8 @@
-import * as zod from "jsr:@zod/zod";
+import * as zod from "@zod/zod";
 
-import { readAtomFeed, readRssFeed } from "../_includes/feed.ts";
+import { readRssFeed } from "lib/rss.ts";
+import { readAtomFeed } from "lib/atom.ts";
+
 import {
   ArticlesFetchResult,
   ArticleSource,

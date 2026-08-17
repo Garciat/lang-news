@@ -1,4 +1,4 @@
-import * as zod from "jsr:@zod/zod";
+import * as zod from "@zod/zod";
 
 const UtcDateTimeCodec = zod.codec(
   zod.iso.datetime(),
