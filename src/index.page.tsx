@@ -37,6 +37,14 @@ export default (data: Lume.Data, h: Lume.Helpers) => {
                     <strong>{`[${article.source}]`}</strong>
                   </small>{" "}
                   <a href={article.articleLink.toString()}>{article.title}</a>
+                  {" "}
+                  <small>
+                    <time style={{ "white-space": "nowrap" }}>
+                      {article.date.toTemporalInstant().toZonedDateTimeISO(
+                        "UTC",
+                      ).toPlainDate().toString()}
+                    </time>
+                  </small>
                 </article>
               ))}
             </section>
