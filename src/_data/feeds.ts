@@ -8,6 +8,12 @@ const sources: ReadonlyArray<ArticleSource> = [
     kind: "rss",
   },
   {
+    name: "cpp",
+    // Proxy for https://isocpp.org/blog/rss/category/standardization
+    url: "https://rss.app/feeds/8xXoTAuI5rXW7IXi.xml",
+    kind: "rss",
+  },
+  {
     name: "csharp",
     url: "https://devblogs.microsoft.com/dotnet/tag/csharp/feed/",
     kind: "rss",
