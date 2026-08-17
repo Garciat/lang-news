@@ -1,6 +1,4 @@
-import {
-  ArticleStorageCodec,
-} from "./_includes/types.ts";
+import { ArticleStorageCodec } from "./_includes/types.ts";
 
 export default async function* (
   { feeds }: Lume.Data<FeedsData>,
