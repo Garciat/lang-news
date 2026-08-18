@@ -19,8 +19,23 @@ const sources: ReadonlyArray<ArticleSource> = [
     kind: "rss",
   },
   {
+    name: "dart",
+    url: "https://dart.dev/blog/feed.xml",
+    kind: "atom",
+  },
+  {
     name: "dlang",
     url: "https://blog.dlang.org/feed.xml",
+    kind: "atom",
+  },
+  {
+    name: "dotnet",
+    url: "https://devblogs.microsoft.com/dotnet/category/aspnetcore/feed/",
+    kind: "rss",
+  },
+  {
+    name: "ecmascript",
+    url: "https://ecmascript-daily.github.io/atom.xml",
     kind: "atom",
   },
   {
@@ -32,6 +47,11 @@ const sources: ReadonlyArray<ArticleSource> = [
     name: "erlang",
     url: "https://www.erlang.org/blog.xml",
     kind: "atom",
+  },
+  {
+    name: "fsharp",
+    url: "https://devblogs.microsoft.com/dotnet/tag/f/feed/",
+    kind: "rss",
   },
   {
     name: "golang",
@@ -48,6 +68,12 @@ const sources: ReadonlyArray<ArticleSource> = [
     url: "https://feed.infoq.com/openjdk/news/",
     kind: "rss",
   },
+  // TODO: decode xml/html entities
+  // {
+  //   name: "julia",
+  //   url: "https://julialang.org/feed.xml",
+  //   kind: "rss",
+  // },
   {
     name: "kotlin",
     url: "https://blog.jetbrains.com/kotlin/category/releases/feed/",
