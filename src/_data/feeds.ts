@@ -110,6 +110,21 @@ const sources: ReadonlyArray<ArticleSource> = [
     kind: "rss",
   },
   {
+    name: "w3c",
+    url: "https://www.w3.org/news/feed/",
+    kind: "rss",
+  },
+  {
+    name: "wasm",
+    url: "https://bytecodealliance.org/feed.xml",
+    kind: "atom",
+  },
+  {
+    name: "web",
+    url: "https://web.dev/static/blog/feed.xml",
+    kind: "rss",
+  },
+  {
     name: "zig",
     url: "https://ziglang.org/news/index.xml",
     kind: "rss",
