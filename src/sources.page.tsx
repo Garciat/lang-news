@@ -12,7 +12,7 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
         <header>
           <h1>Programming Language News</h1>
           <p>
-            <a href={h.url("/")}>Go back</a>
+            <a href={h.url("/")}>Back to all articles</a>
           </p>
           <p>Fetched at {feeds.fetchedAt.toString()}</p>
         </header>

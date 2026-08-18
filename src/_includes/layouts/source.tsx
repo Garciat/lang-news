@@ -4,15 +4,17 @@ export const layout = "layouts/base.tsx";
 
 export const title = "Programming Language News";
 
-export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
+export default (
+  { source, articles }: Lume.Data<SourcePageData>,
+  h: Lume.Helpers,
+) => {
   const year = Temporal.Now.zonedDateTimeISO("UTC").year;
 
-  const articles = feeds.sources.flatMap((source) => source.result.articles)
-    .filter((article) => article.date.toZonedDateTimeISO("UTC").year == year)
-    .toSorted((a, b) => Temporal.Instant.compare(b.date, a.date));
-
   const articlesByYearMonth = Map.groupBy(
-    articles,
+    articles.filter((article) =>
+      article.date.toZonedDateTimeISO("UTC").year == year
+    )
+      .toSorted((a, b) => Temporal.Instant.compare(b.date, a.date)),
     (article) =>
       Intern.PlainYearMonth.from(
         article.date
@@ -29,7 +31,10 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
           <h1>Programming Language News</h1>
           <p>
             Viewing <strong>{year}</strong> articles for{" "}
-            <a href={h.url("/sources/")}>all sources</a>
+            <strong>{source.name}</strong>
+          </p>
+          <p>
+            <a href={h.url("/")}>Back to all articles</a>
           </p>
         </header>
         {articlesByYearMonth.entries().toArray().map((
@@ -48,11 +53,7 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
               <article style={{ margin: "1.5em 0" }}>
                 <header>
                   <small>
-                    <strong>
-                      <a href={h.url(`/source/${article.source}/`)}>
-                        {article.source}
-                      </a>
-                    </strong>
+                    <strong>{article.source}</strong>
                   </small>
                   {" • "}
                   <small>
