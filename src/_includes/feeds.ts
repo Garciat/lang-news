@@ -1,7 +1,8 @@
+import * as XML from "@std/xml";
 import * as zod from "@zod/zod";
 
-import { readRssFeed } from "lib/rss.ts";
-import { readAtomFeed } from "lib/atom.ts";
+import { parseRssFeed } from "lib/rss.ts";
+import { parseAtomFeed } from "lib/atom.ts";
 
 import {
   ArticlesFetchResult,
@@ -61,24 +62,33 @@ function mergeFetchResults(
   };
 }
 
+async function fetchFromStorage(
+  url: string,
+): Promise<ArticlesFetchResult | undefined> {
+  const res = await fetch(url);
+  const body = await res.text();
+
+  const storage = ArticleStorageCodec.safeDecode(body);
+
+  if (!storage.success) {
+    console.warn(
+      `ignoring storage: failed to parse:\n${zod.prettifyError(storage.error)}`,
+    );
+    return undefined;
+  }
+
+  console.log(
+    `read articles from storage dated: ${storage.data.result.fetchedAt.toString()}`,
+  );
+
+  return storage.data.result;
+}
+
 async function fetchFromSources(
   sources: ReadonlyArray<ArticleSource>,
 ): Promise<ArticlesFetchResult> {
   const results = await Promise.all(
-    sources.map(async (source) => {
-      switch (source.kind) {
-        case "rss":
-          return {
-            source,
-            result: await rss(source.name, source.url),
-          };
-        case "atom":
-          return {
-            source,
-            result: await atom(source.name, source.url),
-          };
-      }
-    }),
+    sources.map(fetchFromSource),
   );
 
   return {
@@ -87,19 +97,46 @@ async function fetchFromSources(
   };
 }
 
+async function fetchFromSource(source: ArticleSource) {
+  const req = new Request(source.url, {
+    method: "GET",
+  });
+
+  const res = await fetch(req);
+
+  if (!res.ok || !res.body) {
+    return {
+      source,
+      result: failedResult(
+        `failed to fetch URL: ${res.status} ${res.statusText}`,
+      ),
+    };
+  }
+
+  switch (source.kind) {
+    case "rss":
+      return {
+        source,
+        result: await rss(source.name, res),
+      };
+    case "atom":
+      return {
+        source,
+        result: await atom(source.name, res),
+      };
+  }
+}
+
 async function rss(
   source: string,
-  url: string,
+  res: Response,
 ): Promise<ArticleSourceResult> {
-  const feed = await readRssFeed(url);
+  const doc = XML.parse(await res.text());
+
+  const feed = parseRssFeed(doc);
 
   if (!feed.success) {
-    console.warn(`[${source}] failed to fetch`, feed.error);
-    return {
-      updatedAt: Temporal.Now.instant(),
-      articles: [],
-      lastFetchError: feed.error.message,
-    };
+    return failedResult(`failed to parse RSS feed: ${feed.error.message}`);
   }
 
   const channel = feed.data.channels[0];
@@ -121,17 +158,14 @@ async function rss(
 
 async function atom(
   source: string,
-  url: string,
+  res: Response,
 ): Promise<ArticleSourceResult> {
-  const feed = await readAtomFeed(url);
+  const doc = XML.parse(await res.text());
+
+  const feed = parseAtomFeed(doc);
 
   if (!feed.success) {
-    console.warn(`[${source}] failed to fetch`, feed.error);
-    return {
-      updatedAt: Temporal.Now.instant(),
-      articles: [],
-      lastFetchError: feed.error.message,
-    };
+    return failedResult(`failed to parse Atom feed: ${feed.error.message}`);
   }
 
   console.log(
@@ -149,26 +183,12 @@ async function atom(
   };
 }
 
-async function fetchFromStorage(
-  url: string,
-): Promise<ArticlesFetchResult | undefined> {
-  const res = await fetch(url);
-  const body = await res.text();
-
-  const storage = ArticleStorageCodec.safeDecode(body);
-
-  if (!storage.success) {
-    console.warn(
-      `ignoring storage: failed to parse:\n${zod.prettifyError(storage.error)}`,
-    );
-    return undefined;
-  }
-
-  console.log(
-    `read articles from storage dated: ${storage.data.result.fetchedAt.toString()}`,
-  );
-
-  return storage.data.result;
+function failedResult(message: string): ArticleSourceResult {
+  return {
+    updatedAt: Temporal.Now.instant(),
+    articles: [],
+    lastFetchError: message,
+  };
 }
 
 // because objects provide no meaningful keying

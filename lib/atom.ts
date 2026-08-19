@@ -24,31 +24,7 @@ export interface AtomEntry {
   categories?: ReadonlySet<string>;
 }
 
-export async function readAtomFeed(
-  url: string | URL,
-): Promise<xod.Safe<AtomFeed>> {
-  const req = new Request(url, {
-    method: "GET",
-  });
-
-  const res = await fetch(req);
-
-  if (!res.ok || !res.body) {
-    return xod.safeFail(`failed to fetch URL: ${res.status} ${res.statusText}`);
-  }
-
-  const doc = XML.parse(await res.text());
-
-  const feed = parseAtomFeed(doc);
-
-  if (!feed.success) {
-    return xod.safeFail("failed to parse RSS feed", feed.error);
-  }
-
-  return feed;
-}
-
-function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
+export function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
   const link = xod.element(
     "link",
     zod.object({ href: UrlSchema }),

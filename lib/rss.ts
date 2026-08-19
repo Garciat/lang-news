@@ -34,31 +34,7 @@ export interface RssItem {
   description?: string;
 }
 
-export async function readRssFeed(
-  url: string | URL,
-): Promise<xod.Safe<RssFeed>> {
-  const req = new Request(url, {
-    method: "GET",
-  });
-
-  const res = await fetch(req);
-
-  if (!res.ok || !res.body) {
-    return xod.safeFail(`failed to fetch URL: ${res.status} ${res.statusText}`);
-  }
-
-  const doc = XML.parse(await res.text());
-
-  const feed = parseRssFeed(doc);
-
-  if (!feed.success) {
-    return xod.safeFail("failed to parse RSS feed", feed.error);
-  }
-
-  return feed;
-}
-
-function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
+export function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
   const item = xod.element(
     "item",
     zod.object(),
