@@ -54,6 +54,11 @@ const sources: ReadonlyArray<ArticleSource> = [
     kind: "rss",
   },
   {
+    name: "ghc",
+    url: "https://www.haskell.org/ghc/rss.xml",
+    kind: "rss",
+  },
+  {
     name: "golang",
     url: "https://go.dev/blog/feed.atom",
     kind: "atom",
