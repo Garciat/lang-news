@@ -73,12 +73,11 @@ const sources: ReadonlyArray<ArticleSource> = [
     url: "https://feed.infoq.com/openjdk/news/",
     kind: "rss",
   },
-  // TODO: decode xml/html entities
-  // {
-  //   name: "julia",
-  //   url: "https://julialang.org/feed.xml",
-  //   kind: "rss",
-  // },
+  {
+    name: "julia",
+    url: "https://julialang.org/feed.xml",
+    kind: "rss",
+  },
   {
     name: "kotlin",
     url: "https://blog.jetbrains.com/kotlin/category/releases/feed/",
