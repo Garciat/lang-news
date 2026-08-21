@@ -1,3 +1,4 @@
+import * as HTML from "jsr:@std/html@1.0.7";
 import * as XML from "@std/xml";
 import * as zod from "@zod/zod";
 
@@ -17,6 +18,15 @@ const UrlSchema = zod
   .url()
   .transform((value) => new URL(value));
 
+const HtmlEscapedTextCodec = zod.codec(
+  zod.string(),
+  zod.string(),
+  {
+    decode: (value) => HTML.unescape(value),
+    encode: (value) => HTML.escape(value),
+  },
+);
+
 export interface RssFeed {
   channels: ReadonlyArray<RssChannel>;
 }
@@ -31,7 +41,6 @@ export interface RssItem {
   title: string;
   link: URL;
   pubDate: Temporal.Instant;
-  description?: string;
 }
 
 export function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
@@ -39,16 +48,14 @@ export function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     "item",
     zod.object(),
     {
-      title: xod.optional(xod.text(zod.string())),
+      title: xod.one(xod.text(HtmlEscapedTextCodec)),
       link: xod.one(xod.text(UrlSchema)),
       pubDate: xod.one(xod.text(DateRfc2822Schema)),
-      description: xod.optional(xod.text(zod.string())),
     },
     ({ children }) => ({
-      title: children.title ?? "???",
+      title: children.title,
       link: children.link,
       pubDate: children.pubDate,
-      description: children.description,
     } satisfies RssItem),
   );
 
