@@ -84,6 +84,31 @@ export function element<C extends XmlChildrenParserRecord<C>, A, R>(
   );
 }
 
+export function field<A, T, R>(
+  name: string,
+  attributes: zod.ZodType<A>,
+  bodyType: zod.ZodType<T, string>,
+  builder: (
+    args: { attributes: A; body: T },
+  ) => R,
+): Parser<XML.XmlElement, R> {
+  return sequenceParsers(
+    parsingXmlNodeToElement(name),
+    sequenceParsers(
+      parsingXmlElementContents(
+        parsingAttributesWithZod(attributes),
+        parsingXmlTextChildren(),
+      ),
+      ({ attributes, children }) => {
+        const result = bodyType.safeDecode(children);
+        return result.success
+          ? safeSuccess(builder({ attributes, body: result.data }))
+          : safeFail(`zod decode fail`, result.error);
+      },
+    ),
+  );
+}
+
 export function text<T>(
   ty: zod.ZodType<T, string>,
 ): Parser<XML.XmlElement, T> {

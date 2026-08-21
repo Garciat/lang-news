@@ -54,7 +54,7 @@ function mergeFetchResults(
           lastFetchError: source.result.lastFetchError,
           articles: dedupeBy(
             [...source.result.articles, ...stored.result.articles],
-            (article) => article.link.toString(),
+            (article) => article.guid,
           ),
         },
       };
@@ -160,6 +160,7 @@ async function rss(
       title: item.title,
       date: item.pubDate,
       link: item.link,
+      guid: item.guid?.value ?? item.link.toString(),
       source: source.name,
     })),
   };
@@ -198,6 +199,7 @@ async function atom(
       title: entry.title,
       date: entry.updated,
       link: entry.link,
+      guid: entry.id,
       source: source.name,
     })),
   };

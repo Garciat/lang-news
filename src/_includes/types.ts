@@ -22,6 +22,7 @@ const ArticleSchema = zod.object({
   title: zod.string(),
   date: UtcDateTimeCodec,
   link: UrlCodec,
+  guid: zod.string(),
   source: zod.string(),
 });
 

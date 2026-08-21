@@ -19,6 +19,7 @@ export interface AtomFeed {
 
 export interface AtomEntry {
   title: string;
+  id: string;
   link: URL;
   updated: Temporal.Instant;
   categories?: ReadonlySet<string>;
@@ -41,14 +42,15 @@ export function parseAtomFeed(doc: XML.XmlDocument): xod.Safe<AtomFeed> {
 
   const entry = xod.element("entry", zod.object(), {
     title: xod.one(xod.text(zod.string())),
-    id: xod.one(xod.text(UrlSchema)),
+    id: xod.one(xod.text(zod.string())),
     link: xod.many(link),
     updated: xod.one(xod.text(OffsetDateTimeSchema)),
     category: xod.many(category),
   }, ({ children }) => ({
     title: children.title,
-    // TODO lil hack to avoid checking link:rel
-    link: children.link.length === 1 ? children.link[0] : children.id,
+    id: children.id,
+    // TODO check link:rel
+    link: children.link[0],
     updated: children.updated,
     categories: new Set(children.category),
   } satisfies AtomEntry));
