@@ -1,8 +1,8 @@
 import { Intern } from "lib/intern.ts";
 
-export const layout = "layouts/base.tsx";
+import { SiteConfig } from "../config.ts";
 
-export const title = "Programming Language News";
+export const layout = "layouts/base.tsx";
 
 export default (
   { source, articles }: Lume.Data<SourcePageData>,
@@ -28,10 +28,9 @@ export default (
     <>
       <main>
         <header>
-          <h1>Programming Language News</h1>
+          <h1>{SiteConfig.title}</h1>
           <p>
-            Viewing <strong>{year}</strong> articles for{" "}
-            <strong>{source.name}</strong>
+            Viewing articles for <strong>{source.name}</strong>
           </p>
           <p>
             <a href={h.url("/")}>Back to all articles</a>

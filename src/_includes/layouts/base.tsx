@@ -14,6 +14,11 @@ export default (
         <link rel="stylesheet" href={h.url("/assets/main.css")} />
 
         <title>{page.title}</title>
+
+        <script
+          src="https://cdn.jsdelivr.net/npm/@github/relative-time-element@5.3.1/dist/bundle.min.js"
+          type="module"
+        />
       </head>
 
       <body>

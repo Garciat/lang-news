@@ -1,3 +1,4 @@
+import { SiteConfig } from "./_includes/config.ts";
 import { Article, ArticleSource } from "./_includes/types.ts";
 
 declare global {
@@ -15,6 +16,7 @@ export default async function* (
   for (const source of feeds.sources) {
     yield {
       basename: source.source.name,
+      title: `${source.source.name} - ${SiteConfig.title}`,
       source: source.source,
       articles: source.result.articles,
     };

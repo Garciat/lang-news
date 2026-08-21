@@ -1,8 +1,8 @@
 import { Intern } from "lib/intern.ts";
 
-export const layout = "layouts/base.tsx";
+import { SiteConfig } from "./_includes/config.ts";
 
-export const title = "Programming Language News";
+export const layout = "layouts/base.tsx";
 
 export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
   const year = Temporal.Now.zonedDateTimeISO("UTC").year;
@@ -26,10 +26,20 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
     <>
       <main>
         <header>
-          <h1>Programming Language News</h1>
+          <h1>{SiteConfig.title}</h1>
           <p>
-            Viewing <strong>{year}</strong> articles for{" "}
-            <a href={h.url("/sources/")}>all sources</a>
+            Aggregated news from several official programming language/platform
+            {" "}
+            <a href={h.url("/sources/")}>sources</a> that interest{" "}
+            <a href="https://garciat.com/">me</a>.
+          </p>
+          <p>
+            <small style={{ opacity: "0.5" }}>
+              This feed is updated hourly. Last update:{" "}
+              <relative-time datetime={feeds.fetchedAt.toString()}>
+                {new Date(feeds.fetchedAt.epochMilliseconds).toUTCString()}
+              </relative-time>
+            </small>
           </p>
         </header>
         {articlesByYearMonth.entries().toArray().map((
@@ -51,6 +61,7 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
                     <strong>
                       <a href={h.url(`/source/${article.source}/`)}>
                         {article.source}
+                        {" ↗"}
                       </a>
                     </strong>
                   </small>
