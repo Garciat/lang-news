@@ -31,6 +31,7 @@ const ArticleSourceSchema = zod.object({
   name: zod.string(),
   url: zod.url(),
   kind: zod.literal(["rss", "atom"]),
+  proxy: zod.optional(zod.boolean()),
 });
 
 export type ArticleSource = zod.infer<typeof ArticleSourceSchema>;

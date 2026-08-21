@@ -9,9 +9,9 @@ const sources: ReadonlyArray<ArticleSource> = [
   },
   {
     name: "cpp",
-    // Proxy for https://isocpp.org/blog/rss/category/standardization
-    url: "https://rss.app/feeds/8xXoTAuI5rXW7IXi.xml",
+    url: "https://isocpp.org/blog/rss/category/standardization",
     kind: "rss",
+    proxy: true,
   },
   {
     name: "csharp",

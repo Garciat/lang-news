@@ -98,39 +98,48 @@ async function fetchFromSources(
 }
 
 async function fetchFromSource(source: ArticleSource) {
-  const req = new Request(source.url, {
-    method: "GET",
-  });
-
-  const res = await fetch(req);
-
-  if (!res.ok || !res.body) {
-    return {
-      source,
-      result: failedResult(
-        `failed to fetch URL: ${res.status} ${res.statusText}`,
-      ),
-    };
-  }
-
   switch (source.kind) {
     case "rss":
       return {
         source,
-        result: await rss(source.name, res),
+        result: await rss(source),
       };
     case "atom":
       return {
         source,
-        result: await atom(source.name, res),
+        result: await atom(source),
       };
   }
 }
 
 async function rss(
-  source: string,
-  res: Response,
+  source: ArticleSource,
 ): Promise<ArticleSourceResult> {
+  const req = source.proxy
+    ? new Request(
+      "https://api.scrapingant.com/v2/general?" +
+        new URLSearchParams({
+          url: source.url,
+          return_page_source: "true",
+        }),
+      {
+        headers: {
+          "x-api-key": Deno.env.get("API_KEY_SCRAPING_ANT") ?? "nope",
+        },
+      },
+    )
+    : new Request(source.url, {
+      method: "GET",
+    });
+
+  const res = await fetch(req);
+
+  if (!res.ok || !res.body) {
+    return failedResult(
+      `failed to fetch URL: ${res.status} ${res.statusText}`,
+    );
+  }
+
   const doc = XML.parse(await res.text());
 
   const feed = parseRssFeed(doc);
@@ -142,7 +151,7 @@ async function rss(
   const channel = feed.data.channels[0];
 
   console.log(
-    `[${source}] fetched ${channel.items.length} articles`,
+    `[${source.name}] fetched ${channel.items.length} articles`,
   );
 
   return {
@@ -151,15 +160,26 @@ async function rss(
       title: item.title,
       date: item.pubDate,
       link: item.link,
-      source: source,
+      source: source.name,
     })),
   };
 }
 
 async function atom(
-  source: string,
-  res: Response,
+  source: ArticleSource,
 ): Promise<ArticleSourceResult> {
+  const req = new Request(source.url, {
+    method: "GET",
+  });
+
+  const res = await fetch(req);
+
+  if (!res.ok || !res.body) {
+    return failedResult(
+      `failed to fetch URL: ${res.status} ${res.statusText}`,
+    );
+  }
+
   const doc = XML.parse(await res.text());
 
   const feed = parseAtomFeed(doc);
@@ -169,7 +189,7 @@ async function atom(
   }
 
   console.log(
-    `[${source}] fetched ${feed.data.entries.length} articles`,
+    `[${source.name}] fetched ${feed.data.entries.length} articles`,
   );
 
   return {
@@ -178,7 +198,7 @@ async function atom(
       title: entry.title,
       date: entry.updated,
       link: entry.link,
-      source: source,
+      source: source.name,
     })),
   };
 }
