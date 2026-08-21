@@ -1,3 +1,4 @@
+import * as HTML from "jsr:@std/html@1.0.7";
 import * as XML from "@std/xml";
 import * as zod from "@zod/zod";
 
@@ -15,6 +16,15 @@ const Rfc822Codec = zod.codec(
 const UrlSchema = zod
   .url()
   .transform((value) => new URL(value));
+
+const HtmlEscapedTextCodec = zod.codec(
+  zod.string(),
+  zod.string(),
+  {
+    decode: (value) => HTML.unescape(value),
+    encode: (value) => HTML.escape(value),
+  },
+);
 
 export interface RssFeed {
   channels: ReadonlyArray<RssChannel>;
@@ -57,7 +67,7 @@ export function parseRssFeed(doc: XML.XmlDocument): xod.Safe<RssFeed> {
     "item",
     zod.object(),
     {
-      title: xod.optional(xod.text(zod.string())),
+      title: xod.optional(xod.text(HtmlEscapedTextCodec)),
       link: xod.one(xod.text(UrlSchema)),
       guid: xod.one(guid),
       pubDate: xod.one(xod.text(Rfc822Codec)),
