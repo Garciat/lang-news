@@ -87,7 +87,6 @@ const sources: ReadonlyArray<ArticleSource> = [
     name: "openjdk",
     url: "https://garciat.com/openjdk-jep-history/feed.xml",
     kind: "rss",
-    purge: true,
   },
   {
     name: "python",
