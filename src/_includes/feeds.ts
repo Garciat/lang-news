@@ -38,6 +38,10 @@ function mergeFetchResults(
   return {
     fetchedAt: current.fetchedAt,
     sources: current.sources.map((source) => {
+      if (source.source.purge) {
+        return source;
+      }
+
       const stored = storageBySourceName.get(source.source.name);
       if (stored === undefined) {
         return source;
