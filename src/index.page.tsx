@@ -30,8 +30,7 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
           <p>
             Aggregated news from several official programming language/platform
             {" "}
-            <a href={h.url("/sources/")}>sources</a> that interest{" "}
-            <a href="https://garciat.com/">me</a>.
+            <a href={h.url("/sources/")}>sources</a>.
           </p>
           <p>
             <small style={{ opacity: "0.5" }}>
