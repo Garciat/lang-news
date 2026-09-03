@@ -8,7 +8,7 @@ export const SiteConfig = {
   storagePath: "data.json",
 } as const;
 
-export const sources: ReadonlyArray<Readonly<ArticleSource>> = [
+export const sources = [
   {
     name: "clojure",
     url: "https://clojure.org/feed.xml",
@@ -145,4 +145,4 @@ export const sources: ReadonlyArray<Readonly<ArticleSource>> = [
     url: "https://ziglang.org/news/index.xml",
     kind: "rss",
   },
-];
+] as const satisfies ArticleSource[];
