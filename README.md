@@ -1,7 +1,7 @@
 # lang-news
 
 Lang News is a static site that aggregates programming language news from
-official sources using [Lume](https://lume.land) and [Deno](https://deno.land).
+official sources using [Deno](https://deno.land).
 
 ## Prerequisites
 
