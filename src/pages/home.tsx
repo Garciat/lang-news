@@ -1,11 +1,12 @@
+import { helpers } from "deno-static/mod.ts";
+
 import { Intern } from "lib/intern.ts";
 
 import { SiteConfig } from "../config.ts";
+import { paths } from "../paths.ts";
 import { ArticlesFetchResult } from "../types.ts";
-import { helpers } from "deno-static/mod.ts";
-import { BaseLayout } from "./layouts/base.tsx";
 
-export const layout = "layouts/base.tsx";
+import { BaseLayout } from "./layouts/base.tsx";
 
 type HomePageProps = {
   feeds: ArticlesFetchResult;
@@ -30,14 +31,14 @@ export const HomePage: React.FC<HomePageProps> = ({ feeds }) => {
   );
 
   return (
-    <BaseLayout title={SiteConfig.title} url="/">
+    <BaseLayout title={SiteConfig.title} url={paths.index()}>
       <main>
         <header>
           <h1>{SiteConfig.title}</h1>
           <p>
             Aggregated news from several official programming language/platform
             {" "}
-            <a href={helpers.url("/sources/")}>sources</a>.
+            <a href={helpers.url(paths.sources())}>sources</a>.
           </p>
           <p>
             <small style={{ opacity: "0.5" }}>
@@ -65,7 +66,7 @@ export const HomePage: React.FC<HomePageProps> = ({ feeds }) => {
                 <header>
                   <small>
                     <strong>
-                      <a href={helpers.url(`/source/${article.source}/`)}>
+                      <a href={helpers.url(paths.source(article.source))}>
                         {article.source}
                         {" ↗"}
                       </a>
@@ -81,7 +82,9 @@ export const HomePage: React.FC<HomePageProps> = ({ feeds }) => {
                   </small>
                 </header>
                 <div>
-                  <a href={article.link.toString()}>{article.title}</a>
+                  <a href={article.link.toString()} rel="nofollow">
+                    {article.title}
+                  </a>
                 </div>
               </article>
             ))}

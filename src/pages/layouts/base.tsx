@@ -1,5 +1,7 @@
 import { helpers } from "deno-static/mod.ts";
 
+import { paths } from "../../paths.ts";
+
 type BaseLayoutProps = {
   title: string;
   url: `/${string}`;
@@ -18,7 +20,7 @@ export const BaseLayout: React.FC<BaseLayoutProps> = (
 
         <link rel="canonical" href={helpers.url(url, true)} />
 
-        <link rel="stylesheet" href={helpers.url("/assets/main.css")} />
+        <link rel="stylesheet" href={helpers.url(paths.asset("/main.css"))} />
 
         <title>{title}</title>
 

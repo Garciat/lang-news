@@ -1,7 +1,8 @@
 import { directory, index, json, jsx, site, tree } from "deno-static/mod.ts";
 
-import { sources } from "./config.ts";
+import { SiteConfig, sources } from "./config.ts";
 import { readFeeds } from "./feeds.ts";
+import { paths } from "./paths.ts";
 import { ArticleStorageSchema } from "./types.ts";
 
 import { HomePage } from "./pages/home.tsx";
@@ -12,10 +13,10 @@ const feeds = await readFeeds(sources);
 
 await site({
   [index]: jsx(<HomePage feeds={feeds} />),
-  "sources": {
+  [paths.slugs.sources]: {
     [index]: jsx(<SourcesPage feeds={feeds} />),
   },
-  "source": tree(
+  [paths.slugs.source]: tree(
     feeds.sources.map((
       source,
     ) => [
@@ -31,11 +32,11 @@ await site({
       },
     ]),
   ),
-  "data.json": json(
+  [SiteConfig.storagePath]: json(
     ArticleStorageSchema.encode({
       version: 2,
       result: feeds,
     }),
   ),
-  "assets": directory(import.meta.resolve("./assets/")),
+  [paths.slugs.assets]: directory(import.meta.resolve("./assets/")),
 });

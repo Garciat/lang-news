@@ -1,5 +1,7 @@
 import { helpers } from "deno-static/mod.ts";
+
 import { SiteConfig } from "../config.ts";
+import { paths } from "../paths.ts";
 import { ArticlesFetchResult } from "../types.ts";
 
 import { BaseLayout } from "./layouts/base.tsx";
@@ -13,22 +15,22 @@ export const SourcesPage: React.FC<SourcePageProps> = ({ feeds }) => {
     .toSorted((a, b) => a.source.name.localeCompare(b.source.name));
 
   return (
-    <BaseLayout title={`Sources - ${SiteConfig.title}`} url="/sources/">
+    <BaseLayout title={`Sources - ${SiteConfig.title}`} url={paths.sources()}>
       <main>
         <header>
           <h1>{SiteConfig.title}</h1>
           <p>
-            <a href={helpers.url("/")}>Back to all articles</a>
+            <a href={helpers.url(paths.index())}>Back to all articles</a>
           </p>
         </header>
         {sources.map((source) => (
           <div key={source.source.name} style={{ margin: "1em 0" }}>
             <header>
               <strong>{source.source.name}</strong>{" "}
-              <a href={helpers.url(`/source/${source.source.name}/`)}>↗</a>
+              <a href={helpers.url(paths.source(source.source.name))}>↗</a>
             </header>
             <div>
-              <a href={source.source.url}>{source.source.url}</a>
+              <a href={source.source.url} rel="nofollow">{source.source.url}</a>
             </div>
             <div>
               Last updated:{" "}

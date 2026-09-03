@@ -2,6 +2,10 @@ import { ArticleSource } from "./types.ts";
 
 export const SiteConfig = {
   title: "The Programming Report",
+
+  ghPagesUrl: new URL("https://garciat.com/lang-news/"),
+
+  storagePath: "data.json",
 } as const;
 
 export const sources: ReadonlyArray<Readonly<ArticleSource>> = [

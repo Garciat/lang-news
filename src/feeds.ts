@@ -10,12 +10,13 @@ import {
   ArticleSourceResult,
   ArticleStorageSchema,
 } from "./types.ts";
+import { SiteConfig } from "./config.ts";
 
 export async function readFeeds(
   sources: ReadonlyArray<ArticleSource>,
 ): Promise<ArticlesFetchResult> {
   const storage = await fetchFromStorage(
-    "https://garciat.com/lang-news/data.json",
+    new URL(SiteConfig.storagePath, SiteConfig.ghPagesUrl),
   );
 
   const current = await fetchFromSources(sources);
@@ -67,7 +68,7 @@ function mergeFetchResults(
 }
 
 async function fetchFromStorage(
-  url: string,
+  url: URL,
 ): Promise<ArticlesFetchResult | undefined> {
   const res = await fetch(url);
   const body = await res.json();

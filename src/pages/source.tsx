@@ -3,10 +3,10 @@ import { helpers } from "deno-static/mod.ts";
 import { Intern } from "lib/intern.ts";
 
 import { SiteConfig } from "../config.ts";
+import { paths } from "../paths.ts";
 import { Article, ArticleSource } from "../types.ts";
-import { BaseLayout } from "./layouts/base.tsx";
 
-export const layout = "layouts/base.tsx";
+import { BaseLayout } from "./layouts/base.tsx";
 
 type SourcePageProps = {
   source: ArticleSource;
@@ -33,7 +33,7 @@ export const SourcePage: React.FC<SourcePageProps> = ({ source, articles }) => {
   return (
     <BaseLayout
       title={`${source.name} - ${SiteConfig.title}`}
-      url={`/source/${source.name}/`}
+      url={paths.source(source.name)}
     >
       <main>
         <header>
@@ -42,7 +42,7 @@ export const SourcePage: React.FC<SourcePageProps> = ({ source, articles }) => {
             Viewing articles for <strong>{source.name}</strong>
           </p>
           <p>
-            <a href={helpers.url("/")}>Back to all articles</a>
+            <a href={helpers.url(paths.index())}>Back to all articles</a>
           </p>
         </header>
         {articlesByYearMonth.entries().toArray().map((
@@ -73,7 +73,9 @@ export const SourcePage: React.FC<SourcePageProps> = ({ source, articles }) => {
                   </small>
                 </header>
                 <div>
-                  <a href={article.link.toString()}>{article.title}</a>
+                  <a href={article.link.toString()} rel="nofollow">
+                    {article.title}
+                  </a>
                 </div>
               </article>
             ))}
