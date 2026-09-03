@@ -1,10 +1,17 @@
 import { Intern } from "lib/intern.ts";
 
-import { SiteConfig } from "./_includes/config.ts";
+import { SiteConfig } from "../config.ts";
+import { ArticlesFetchResult } from "../types.ts";
+import { helpers } from "deno-static/mod.ts";
+import { BaseLayout } from "./layouts/base.tsx";
 
 export const layout = "layouts/base.tsx";
 
-export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
+type HomePageProps = {
+  feeds: ArticlesFetchResult;
+};
+
+export const HomePage: React.FC<HomePageProps> = ({ feeds }) => {
   const year = Temporal.Now.zonedDateTimeISO("UTC").year;
 
   const articles = feeds.sources.flatMap((source) => source.result.articles)
@@ -23,14 +30,14 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
   );
 
   return (
-    <>
+    <BaseLayout title={SiteConfig.title} url="/">
       <main>
         <header>
           <h1>{SiteConfig.title}</h1>
           <p>
             Aggregated news from several official programming language/platform
             {" "}
-            <a href={h.url("/sources/")}>sources</a>.
+            <a href={helpers.url("/sources/")}>sources</a>.
           </p>
           <p>
             <small style={{ opacity: "0.5" }}>
@@ -44,7 +51,7 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
         {articlesByYearMonth.entries().toArray().map((
           [yearMonth, articles],
         ) => (
-          <section>
+          <section key={yearMonth.toString()}>
             <header>
               <h3>
                 {yearMonth.toPlainDate({ day: 1 })
@@ -54,11 +61,11 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
               </h3>
             </header>
             {articles.map((article) => (
-              <article style={{ margin: "1.5em 0" }}>
+              <article key={article.guid} style={{ margin: "1.5em 0" }}>
                 <header>
                   <small>
                     <strong>
-                      <a href={h.url(`/source/${article.source}/`)}>
+                      <a href={helpers.url(`/source/${article.source}/`)}>
                         {article.source}
                         {" ↗"}
                       </a>
@@ -81,6 +88,6 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
           </section>
         ))}
       </main>
-    </>
+    </BaseLayout>
   );
 };

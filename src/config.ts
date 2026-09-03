@@ -1,7 +1,10 @@
-import { readFeeds } from "../_includes/feeds.ts";
-import { ArticlesFetchResult, ArticleSource } from "../_includes/types.ts";
+import { ArticleSource } from "./types.ts";
 
-const sources: ReadonlyArray<ArticleSource> = [
+export const SiteConfig = {
+  title: "The Programming Report",
+} as const;
+
+export const sources: ReadonlyArray<Readonly<ArticleSource>> = [
   {
     name: "clojure",
     url: "https://clojure.org/feed.xml",
@@ -139,13 +142,3 @@ const sources: ReadonlyArray<ArticleSource> = [
     kind: "rss",
   },
 ];
-
-const feeds = await readFeeds(sources);
-
-export default feeds;
-
-declare global {
-  interface FeedsData {
-    feeds: ArticlesFetchResult;
-  }
-}

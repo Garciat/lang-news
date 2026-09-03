@@ -1,27 +1,31 @@
-import { SiteConfig } from "./_includes/config.ts";
+import { helpers } from "deno-static/mod.ts";
+import { SiteConfig } from "../config.ts";
+import { ArticlesFetchResult } from "../types.ts";
 
-export const layout = "layouts/base.tsx";
+import { BaseLayout } from "./layouts/base.tsx";
 
-export const title = `Sources - ${SiteConfig.title}`;
+type SourcePageProps = {
+  feeds: ArticlesFetchResult;
+};
 
-export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
+export const SourcesPage: React.FC<SourcePageProps> = ({ feeds }) => {
   const sources = feeds.sources
     .toSorted((a, b) => a.source.name.localeCompare(b.source.name));
 
   return (
-    <>
+    <BaseLayout title={`Sources - ${SiteConfig.title}`} url="/sources/">
       <main>
         <header>
           <h1>{SiteConfig.title}</h1>
           <p>
-            <a href={h.url("/")}>Back to all articles</a>
+            <a href={helpers.url("/")}>Back to all articles</a>
           </p>
         </header>
         {sources.map((source) => (
-          <div style={{ margin: "1em 0" }}>
+          <div key={source.source.name} style={{ margin: "1em 0" }}>
             <header>
               <strong>{source.source.name}</strong>{" "}
-              <a href={h.url(`/source/${source.source.name}/`)}>↗</a>
+              <a href={helpers.url(`/source/${source.source.name}/`)}>↗</a>
             </header>
             <div>
               <a href={source.source.url}>{source.source.url}</a>
@@ -44,6 +48,6 @@ export default ({ feeds }: Lume.Data<FeedsData>, h: Lume.Helpers) => {
           </div>
         ))}
       </main>
-    </>
+    </BaseLayout>
   );
 };

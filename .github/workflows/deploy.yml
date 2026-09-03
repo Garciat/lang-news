@@ -39,10 +39,10 @@ jobs:
 
       - name: Build site
         env:
-          PAGES_BASE_URL: ${{ steps.setup-pages.outputs.base_url }}
+          BASE_URL: ${{ steps.setup-pages.outputs.base_url }}
           API_KEY_SCRAPING_ANT: ${{ secrets.API_KEY_SCRAPING_ANT }}
         run: |
-          API_KEY_SCRAPING_ANT="$API_KEY_SCRAPING_ANT" deno task build --location="$PAGES_BASE_URL"
+          API_KEY_SCRAPING_ANT="$API_KEY_SCRAPING_ANT" BASE_URL="$BASE_URL" deno task build
 
       - name: Upload artifact
         if: github.event_name != 'pull_request'

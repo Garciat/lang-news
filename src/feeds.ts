@@ -8,8 +8,8 @@ import {
   ArticlesFetchResult,
   ArticleSource,
   ArticleSourceResult,
-  ArticleStorageCodec,
-} from "../_includes/types.ts";
+  ArticleStorageSchema,
+} from "./types.ts";
 
 export async function readFeeds(
   sources: ReadonlyArray<ArticleSource>,
@@ -70,9 +70,9 @@ async function fetchFromStorage(
   url: string,
 ): Promise<ArticlesFetchResult | undefined> {
   const res = await fetch(url);
-  const body = await res.text();
+  const body = await res.json();
 
-  const storage = ArticleStorageCodec.safeDecode(body);
+  const storage = ArticleStorageSchema.safeDecode(body);
 
   if (!storage.success) {
     console.warn(

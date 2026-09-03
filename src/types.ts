@@ -56,16 +56,7 @@ const ArticlesFetchResultSchema = zod.object({
 
 export type ArticlesFetchResult = zod.infer<typeof ArticlesFetchResultSchema>;
 
-const ArticleStorageSchema = zod.object({
+export const ArticleStorageSchema = zod.object({
   version: zod.literal(2),
   result: ArticlesFetchResultSchema,
 });
-
-export const ArticleStorageCodec = zod.codec(
-  zod.string(),
-  ArticleStorageSchema,
-  {
-    decode: (text) => JSON.parse(text),
-    encode: (storage) => JSON.stringify(storage),
-  },
-);

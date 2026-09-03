@@ -1,13 +1,19 @@
+import { helpers } from "deno-static/mod.ts";
+
 import { Intern } from "lib/intern.ts";
 
 import { SiteConfig } from "../config.ts";
+import { Article, ArticleSource } from "../types.ts";
+import { BaseLayout } from "./layouts/base.tsx";
 
 export const layout = "layouts/base.tsx";
 
-export default (
-  { source, articles }: Lume.Data<SourcePageData>,
-  h: Lume.Helpers,
-) => {
+type SourcePageProps = {
+  source: ArticleSource;
+  articles: ReadonlyArray<Article>;
+};
+
+export const SourcePage: React.FC<SourcePageProps> = ({ source, articles }) => {
   const year = Temporal.Now.zonedDateTimeISO("UTC").year;
 
   const articlesByYearMonth = Map.groupBy(
@@ -25,7 +31,10 @@ export default (
   );
 
   return (
-    <>
+    <BaseLayout
+      title={`${source.name} - ${SiteConfig.title}`}
+      url={`/source/${source.name}/`}
+    >
       <main>
         <header>
           <h1>{SiteConfig.title}</h1>
@@ -33,13 +42,13 @@ export default (
             Viewing articles for <strong>{source.name}</strong>
           </p>
           <p>
-            <a href={h.url("/")}>Back to all articles</a>
+            <a href={helpers.url("/")}>Back to all articles</a>
           </p>
         </header>
         {articlesByYearMonth.entries().toArray().map((
           [yearMonth, articles],
         ) => (
-          <section>
+          <section key={yearMonth.toString()}>
             <header>
               <h3>
                 {yearMonth.toPlainDate({ day: 1 })
@@ -49,7 +58,7 @@ export default (
               </h3>
             </header>
             {articles.map((article) => (
-              <article style={{ margin: "1.5em 0" }}>
+              <article key={article.guid} style={{ margin: "1.5em 0" }}>
                 <header>
                   <small>
                     <strong>{article.source}</strong>
@@ -71,6 +80,6 @@ export default (
           </section>
         ))}
       </main>
-    </>
+    </BaseLayout>
   );
 };
