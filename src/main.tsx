@@ -11,7 +11,7 @@ import { SourcePage } from "./pages/source.tsx";
 
 const feeds = await readFeeds(sources);
 
-await site({
+await site(() => ({
   [index]: jsx(<HomePage feeds={feeds} />),
   [paths.slugs.sources]: {
     [index]: jsx(<SourcesPage feeds={feeds} />),
@@ -39,4 +39,4 @@ await site({
     }),
   ),
   [paths.slugs.assets]: directory(import.meta.resolve("./assets/")),
-});
+}));
