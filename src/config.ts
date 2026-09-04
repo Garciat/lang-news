@@ -31,6 +31,11 @@ export const sources = [
     kind: "atom",
   },
   {
+    name: "deno",
+    url: "https://deno.com/feed",
+    kind: "atom",
+  },
+  {
     name: "dlang",
     url: "https://blog.dlang.org/feed.xml",
     kind: "atom",
