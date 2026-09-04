@@ -627,7 +627,8 @@
     "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.2/markdown.tsx": "ac45806698517f00575bd42852f37be487c0235ff1306d7e3c24827b15423ce0",
     "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.2/mod.ts": "23a583d9320e4ddc51ea5e31e9915dad18030695b4b304986e8c184f6d820c98",
     "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.3/markdown.tsx": "ac45806698517f00575bd42852f37be487c0235ff1306d7e3c24827b15423ce0",
-    "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.3/mod.ts": "5b308c4ec4e613e5a9e82a3b064b1eba56d53e540a418f7ee2516311fd97272c"
+    "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.3/mod.ts": "5b308c4ec4e613e5a9e82a3b064b1eba56d53e540a418f7ee2516311fd97272c",
+    "https://cdn.jsdelivr.net/gh/garciat/deno-static@0.1.4/mod.ts": "909d7b7a947192bf8328b034753cde7eab2c88cb3116fd8ab7f88e473aaedcd1"
   },
   "workspace": {
     "dependencies": [

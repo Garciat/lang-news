@@ -3,6 +3,7 @@ import * as zod from "@zod/zod";
 
 import { parseRssFeed } from "lib/rss.ts";
 import { parseAtomFeed } from "lib/atom.ts";
+import { timed } from "lib/timed.ts";
 
 import {
   ArticlesFetchResult,
@@ -82,8 +83,13 @@ async function fetchFromStorage(
     return undefined;
   }
 
+  const total = storage.data.result.sources.map(
+    (source) => source.result.articles.length,
+  ).reduce((sum, n) => sum + n, 0);
+
   console.log(
-    `read articles from storage dated: ${storage.data.result.fetchedAt.toString()}`,
+    `[fetch] read ${total} articles from storage dated:`,
+    storage.data.result.fetchedAt.toString(),
   );
 
   return storage.data.result;
@@ -92,13 +98,32 @@ async function fetchFromStorage(
 async function fetchFromSources(
   sources: ReadonlyArray<ArticleSource>,
 ): Promise<ArticlesFetchResult> {
-  const results = await Promise.all(
-    sources.map(fetchFromSource),
+  const results = await timed(Promise.all(
+    sources.map(fetchFromSource).map(async (promise) => {
+      const result = await timed(promise);
+
+      console.log(
+        `[fetch]`,
+        `source=${result.value.source.name}`,
+        result.value.result.lastFetchError
+          ? `failed to fetch`
+          : `fetched ${result.value.result.articles.length} articles`,
+        `(${result.duration.total("seconds").toFixed(3)} s)`,
+      );
+
+      return result.value;
+    }),
+  ));
+
+  console.log(
+    `[fetch]`,
+    "done",
+    `(${results.duration.total("seconds").toFixed(3)} s)`,
   );
 
   return {
     fetchedAt: Temporal.Now.instant(),
-    sources: results,
+    sources: results.value,
   };
 }
 
@@ -155,10 +180,6 @@ async function rss(
 
   const channel = feed.data.channels[0];
 
-  console.log(
-    `[${source.name}] fetched ${channel.items.length} articles`,
-  );
-
   return {
     updatedAt: channel.lastBuildDate,
     articles: channel.items.map((item) => ({
@@ -193,10 +214,6 @@ async function atom(
   if (!feed.success) {
     return failedResult(`failed to parse Atom feed: ${feed.error.message}`);
   }
-
-  console.log(
-    `[${source.name}] fetched ${feed.data.entries.length} articles`,
-  );
 
   return {
     updatedAt: feed.data.updated,
