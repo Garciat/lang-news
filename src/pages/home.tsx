@@ -42,7 +42,9 @@ export const HomePage: React.FC<HomePageProps> = ({ feeds }) => {
           </p>
           <p>
             <small style={{ opacity: "0.5" }}>
-              This feed is updated hourly. Last update:{" "}
+              This feed is updated{" "}
+              <abbr title="best-effort by free GitHub Actions">~hourly</abbr>.
+              Last update:{" "}
               <relative-time datetime={feeds.fetchedAt.toString()}>
                 {new Date(feeds.fetchedAt.epochMilliseconds).toUTCString()}
               </relative-time>
